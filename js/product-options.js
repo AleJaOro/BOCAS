@@ -193,14 +193,23 @@ export function optionRowHtml(type, opt = emptyOptionRow()) {
   const mode = opt.priceMode || 'same';
   return `
     <div class="option-editor-row" data-id="${escapeHtml(opt.id)}">
-      <input class="form-input opt-name" placeholder="Nombre" value="${escapeHtml(opt.name || '')}" />
-      <select class="form-select opt-mode">
-        <option value="same" ${mode === 'same' ? 'selected' : ''}>Mismo precio</option>
-        <option value="delta" ${mode === 'delta' ? 'selected' : ''}>Sumar / restar ₡</option>
-        ${showAbsolute ? `<option value="absolute" ${mode === 'absolute' ? 'selected' : ''}>Precio fijo ₡</option>` : ''}
-      </select>
-      <input class="form-input opt-price" type="number" step="1" placeholder="0" value="${opt.price ?? 0}" title="Deja 0 si es mismo precio" />
-      <button type="button" class="btn btn-ghost btn-icon opt-remove" title="Quitar">×</button>
+      <div>
+        <label class="form-label xs mobile-only-label">Nombre</label>
+        <input class="form-input opt-name" placeholder="Ej: 12 pedazos" value="${escapeHtml(opt.name || '')}" />
+      </div>
+      <div>
+        <label class="form-label xs mobile-only-label">Tipo de precio</label>
+        <select class="form-select opt-mode">
+          <option value="same" ${mode === 'same' ? 'selected' : ''}>Mismo precio</option>
+          <option value="delta" ${mode === 'delta' ? 'selected' : ''}>Sumar / restar ₡</option>
+          ${showAbsolute ? `<option value="absolute" ${mode === 'absolute' ? 'selected' : ''}>Precio fijo ₡</option>` : ''}
+        </select>
+      </div>
+      <div>
+        <label class="form-label xs mobile-only-label">Monto ₡</label>
+        <input class="form-input opt-price" type="number" step="1" inputmode="numeric" placeholder="0" value="${opt.price ?? 0}" title="Deja 0 si es mismo precio" />
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm opt-remove" title="Quitar">Quitar</button>
     </div>`;
 }
 

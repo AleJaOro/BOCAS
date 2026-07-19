@@ -1,17 +1,25 @@
 /**
- * Generate QR reliably (ESM + image API fallback)
+ * Generate + download QR (works on mobile browsers)
  */
+
+function qrApiUrl(text, size = 400) {
+  return (
+    'https://api.qrserver.com/v1/create-qr-code/?size=' +
+    size +
+    'x' +
+    size +
+    '&margin=12&format=png&data=' +
+    encodeURIComponent(text)
+  );
+}
 
 /**
  * Draw QR into a canvas element.
- * @param {HTMLCanvasElement} canvas
- * @param {string} text
- * @param {number} size
  */
 export async function drawQrToCanvas(canvas, text, size = 220) {
   if (!canvas || !text) throw new Error('Canvas o enlace vacío');
 
-  // 1) Prefer ESM build of "qrcode"
+  // 1) ESM library (clean canvas, downloadable)
   try {
     const mod = await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');
     const QR = mod.default || mod;
@@ -21,37 +29,15 @@ export async function drawQrToCanvas(canvas, text, size = 220) {
       color: { dark: '#111827', light: '#ffffff' },
       errorCorrectionLevel: 'M'
     });
-    return { method: 'canvas' };
+    canvas.dataset.qrMethod = 'lib';
+    canvas.dataset.qrText = text;
+    return { method: 'lib' };
   } catch (err) {
-    console.warn('QR ESM failed, trying fallback', err);
+    console.warn('QR ESM failed, API fallback', err);
   }
 
-  // 2) Global from classic script (if present)
-  try {
-    if (typeof window.QRCode !== 'undefined' && window.QRCode.toCanvas) {
-      await new Promise((resolve, reject) => {
-        window.QRCode.toCanvas(
-          canvas,
-          text,
-          { width: size, margin: 2, color: { dark: '#111827', light: '#ffffff' } },
-          (e) => (e ? reject(e) : resolve())
-        );
-      });
-      return { method: 'global' };
-    }
-  } catch (err) {
-    console.warn('QR global failed', err);
-  }
-
-  // 3) Image API fallback (always works online)
-  const url =
-    'https://api.qrserver.com/v1/create-qr-code/?size=' +
-    size +
-    'x' +
-    size +
-    '&margin=8&data=' +
-    encodeURIComponent(text);
-
+  // 2) Draw from API (may taint canvas for download — we still show it)
+  const url = qrApiUrl(text, size);
   await new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -64,37 +50,106 @@ export async function drawQrToCanvas(canvas, text, size = 220) {
       ctx.drawImage(img, 0, 0, size, size);
       resolve();
     };
-    img.onerror = () => reject(new Error('No se pudo cargar el QR (API)'));
-    img.src = url;
+    img.onerror = () => {
+      // Last resort: paint blank + mark for download-via-api only
+      canvas.width = size;
+      canvas.height = size;
+      reject(new Error('No se pudo dibujar el QR'));
+    };
+    // Cache-bust
+    img.src = url + '&t=' + Date.now();
   });
+  canvas.dataset.qrMethod = 'api';
+  canvas.dataset.qrText = text;
   return { method: 'api', url };
 }
 
 /**
- * Download canvas as PNG
+ * Force download of a Blob
  */
-export function downloadCanvasPng(canvas, filename = 'menu-qr.png') {
-  if (!canvas) return;
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
+  a.href = url;
   a.download = filename;
-  try {
-    a.href = canvas.toDataURL('image/png');
-  } catch {
-    // tainted canvas — open image fallback
-    toastFallback(canvas);
-    return;
-  }
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1500);
 }
 
-function toastFallback(canvas) {
-  // If canvas is tainted, open data from a re-fetch is hard; just notify via alert-less console
-  console.warn('No se pudo descargar el canvas (CORS). Usa captura de pantalla del QR.');
-  const data = canvas.toDataURL?.('image/png');
-  if (data && data.length > 100) {
-    const a = document.createElement('a');
-    a.download = 'menu-qr.png';
-    a.href = data;
-    a.click();
+/**
+ * Download QR as PNG — always tries blob download (works on phone)
+ * @param {string} text URL/text to encode
+ * @param {string} filename
+ * @param {HTMLCanvasElement} [canvas] optional already-drawn canvas
+ */
+export async function downloadQrPng(text, filename = 'menu-qr.png', canvas = null) {
+  if (!text) throw new Error('Sin enlace para el QR');
+
+  // A) Library → dataURL → blob (best quality, no CORS)
+  try {
+    const mod = await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm');
+    const QR = mod.default || mod;
+    const dataUrl = await QR.toDataURL(text, {
+      width: 512,
+      margin: 2,
+      color: { dark: '#111827', light: '#ffffff' },
+      errorCorrectionLevel: 'M'
+    });
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    triggerBlobDownload(blob, filename);
+    return { method: 'lib-dataurl' };
+  } catch (err) {
+    console.warn('QR lib download failed', err);
   }
+
+  // B) Canvas (if not tainted)
+  if (canvas) {
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      if (dataUrl && dataUrl.length > 200) {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        triggerBlobDownload(blob, filename);
+        return { method: 'canvas' };
+      }
+    } catch (err) {
+      console.warn('Canvas tainted', err);
+    }
+  }
+
+  // C) Fetch PNG from public API as blob (works for real download on most mobiles)
+  try {
+    const api = qrApiUrl(text, 512);
+    const res = await fetch(api, { mode: 'cors' });
+    if (!res.ok) throw new Error('API status ' + res.status);
+    const blob = await res.blob();
+    triggerBlobDownload(blob, filename);
+    return { method: 'api-blob' };
+  } catch (err) {
+    console.warn('API blob download failed', err);
+  }
+
+  // D) Last resort: open image (user long-press save on mobile)
+  const openUrl = qrApiUrl(text, 512);
+  const w = window.open(openUrl, '_blank', 'noopener,noreferrer');
+  if (!w) {
+    // popup blocked — navigate same tab temporarily not ideal; use anchor
+    const a = document.createElement('a');
+    a.href = openUrl;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  const e = new Error('OPEN_FALLBACK');
+  e.code = 'OPEN_FALLBACK';
+  throw e;
 }
