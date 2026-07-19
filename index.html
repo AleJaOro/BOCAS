@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="Bocas — SaaS para sodas y ventas de comida desde casa. Pedidos, menú digital y control en tiempo real." />
+  <title>Bocas — Gestión inteligente para tu soda</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="landing">
+    <nav class="landing-nav">
+      <div class="flex items-center gap-2">
+        <div class="brand-mark">B</div>
+        <span class="brand-text">Bocas</span>
+      </div>
+      <div class="flex gap-1">
+        <a href="login.html" class="btn btn-ghost btn-sm">Ingresar</a>
+        <a href="login.html" class="btn btn-primary btn-sm">Empezar</a>
+      </div>
+    </nav>
+
+    <section class="landing-hero">
+      <span class="badge badge-info mb-2" style="margin-bottom: 1rem; display: inline-flex;">Hecho para Costa Rica 🇨🇷</span>
+      <h1>Moderniza tu soda.<br />Pedidos más rápidos, cero enredo.</h1>
+      <p>
+        Menú digital, pedidos en tiempo real, clientes guardados y estadísticas claras.
+        Todo en un solo lugar, listo para usar en celular, tablet o computadora.
+      </p>
+      <div class="landing-cta">
+        <a href="login.html" class="btn btn-primary btn-lg">Entrar al sistema</a>
+        <a href="setup.html" class="btn btn-secondary btn-lg">Configurar admin</a>
+      </div>
+    </section>
+
+    <section class="feature-grid">
+      <article class="feature-card">
+        <div class="feature-emoji">⚡</div>
+        <h3>Pedidos en vivo</h3>
+        <p>Cada pedido aparece al instante en el dashboard. Cambia estado y avisa por WhatsApp con un toque.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-emoji">📱</div>
+        <h3>Menú digital</h3>
+        <p>Comparte un enlace. Tus clientes piden por categoría, eligen express y método de pago.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-emoji">🛵</div>
+        <h3>Express con tarifas</h3>
+        <p>Define ubicaciones y precios de envío. El menú los usa automáticamente al armar el pedido.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-emoji">👥</div>
+        <h3>Clientes reutilizables</h3>
+        <p>Guarda nombre, teléfono y dirección. Al crear un ticket manual se auto-rellena todo.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-emoji">📊</div>
+        <h3>Estadísticas + Excel</h3>
+        <p>Ventas del día, semana, mes o año. Descarga reportes profesionales en Excel.</p>
+      </article>
+      <article class="feature-card">
+        <div class="feature-emoji">🔐</div>
+        <h3>Licencias y control</h3>
+        <p>Panel admin para activar, pausar o renovar negocios. Ves el tiempo restante de cada licencia.</p>
+      </article>
+    </section>
+
+    <footer class="text-center muted small" style="padding: 2rem 1rem 3rem;">
+      Bocas SaaS · Gestión para sodas y comida desde casa
+    </footer>
+  </div>
+  <script type="module">
+    import { lockViewportZoom } from './js/utils.js';
+    lockViewportZoom();
+  </script>
+</body>
+</html>
