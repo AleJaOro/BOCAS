@@ -65,12 +65,16 @@ export function normalizeItemOptions(item = {}) {
 }
 
 export function itemHasCustomOptions(item) {
-  const o = normalizeItemOptions(item);
-  return (
-    (o.variants.enabled && o.variants.options.length > 0) ||
-    (o.modifiers.enabled && o.modifiers.options.length > 0) ||
-    (o.halves.enabled && o.halves.options.length >= 2)
-  );
+  const o = item?.options;
+  if (!o || typeof o !== 'object') return false;
+  const varN = o.variants?.options?.length || 0;
+  const modN = o.modifiers?.options?.length || 0;
+  const halfN = o.halves?.options?.length || 0;
+  // Explicit enabled OR options present (fallback if flag was lost)
+  if (varN > 0 && o.variants?.enabled !== false) return true;
+  if (modN > 0 && o.modifiers?.enabled !== false) return true;
+  if (halfN >= 2 && o.halves?.enabled !== false) return true;
+  return false;
 }
 
 function applyPriceMode(current, opt) {
@@ -98,7 +102,7 @@ export function computeConfiguredPrice(item, selection = {}) {
     halfB: null
   };
 
-  if (opts.variants.enabled && opts.variants.options.length) {
+  if (opts.variants.options.length && opts.variants.enabled !== false) {
     const v = opts.variants.options.find((x) => x.id === selection.variantId);
     if (v) {
       const before = unit;
@@ -118,7 +122,7 @@ export function computeConfiguredPrice(item, selection = {}) {
     return current + (Number(opt.price) || 0);
   };
 
-  if (opts.halves.enabled && opts.halves.options.length) {
+  if (opts.halves.options.length && opts.halves.enabled !== false) {
     const a = opts.halves.options.find((x) => x.id === selection.halfAId);
     const b = opts.halves.options.find((x) => x.id === selection.halfBId);
     if (a) {
@@ -137,7 +141,7 @@ export function computeConfiguredPrice(item, selection = {}) {
     }
   }
 
-  if (opts.modifiers.enabled && opts.modifiers.options.length) {
+  if (opts.modifiers.options.length && opts.modifiers.enabled !== false) {
     const ids = Array.isArray(selection.modifierIds) ? selection.modifierIds : [];
     ids.forEach((mid) => {
       const m = opts.modifiers.options.find((x) => x.id === mid);
@@ -174,10 +178,10 @@ export function computeConfiguredPrice(item, selection = {}) {
 
 export function validateSelection(item, selection = {}) {
   const opts = normalizeItemOptions(item);
-  if (opts.variants.enabled && opts.variants.options.length && opts.variants.required !== false) {
+  if (opts.variants.options.length && opts.variants.enabled !== false && opts.variants.required !== false) {
     if (!selection.variantId) return 'Selecciona una variante / tamaño';
   }
-  if (opts.halves.enabled && opts.halves.options.length >= 2) {
+  if (opts.halves.options.length >= 2 && opts.halves.enabled !== false) {
     if (!selection.halfAId || !selection.halfBId) return 'Selecciona ambas mitades';
   }
   return null;
@@ -222,9 +226,12 @@ export function priceModeHint(mode, price) {
 /** Public customize modal fields */
 export function buildCustomizeFieldsHtml(item) {
   const opts = normalizeItemOptions(item);
+  const showVar = opts.variants.options.length > 0 && opts.variants.enabled !== false;
+  const showHalf = opts.halves.options.length >= 2 && opts.halves.enabled !== false;
+  const showMod = opts.modifiers.options.length > 0 && opts.modifiers.enabled !== false;
   let html = '';
 
-  if (opts.variants.enabled && opts.variants.options.length) {
+  if (showVar) {
     html += `
       <div class="form-group">
         <label class="form-label">${escapeHtml(opts.variants.label || 'Variante')}</label>
@@ -240,7 +247,7 @@ export function buildCustomizeFieldsHtml(item) {
       </div>`;
   }
 
-  if (opts.halves.enabled && opts.halves.options.length >= 2) {
+  if (showHalf) {
     const halfOpts = opts.halves.options
       .map(
         (o) =>
@@ -263,7 +270,7 @@ export function buildCustomizeFieldsHtml(item) {
       </div>`;
   }
 
-  if (opts.modifiers.enabled && opts.modifiers.options.length) {
+  if (showMod) {
     html += `
       <div class="form-group">
         <label class="form-label">${escapeHtml(opts.modifiers.label || 'Extras')}</label>
@@ -279,6 +286,10 @@ export function buildCustomizeFieldsHtml(item) {
             .join('')}
         </div>
       </div>`;
+  }
+
+  if (!html) {
+    html = `<p class="muted small">Este platillo no tiene opciones configuradas.</p>`;
   }
 
   return html;
