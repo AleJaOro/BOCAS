@@ -1,0 +1,219 @@
+/**
+ * Bocas SaaS — Shared utilities
+ */
+
+export const CURRENCY = '₡';
+
+export function formatMoney(amount) {
+  const n = Number(amount) || 0;
+  return `${CURRENCY}${n.toLocaleString('es-CR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+export function formatDate(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('es-CR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+export function formatDateShort(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+export function daysRemaining(endDate) {
+  if (!endDate) return 0;
+  const end = endDate.toDate ? endDate.toDate() : new Date(endDate);
+  const now = new Date();
+  const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+  return Math.max(0, diff);
+}
+
+export function licenseStatus(endDate, accountStatus) {
+  if (accountStatus === 'paused') return { label: 'Pausada', class: 'badge-warning' };
+  if (accountStatus === 'deleted') return { label: 'Eliminada', class: 'badge-danger' };
+  const days = daysRemaining(endDate);
+  if (days <= 0) return { label: 'Vencida', class: 'badge-danger' };
+  if (days <= 7) return { label: `${days}d restantes`, class: 'badge-warning' };
+  return { label: `${days}d restantes`, class: 'badge-success' };
+}
+
+export function phoneToWhatsApp(phone) {
+  if (!phone) return '';
+  let p = String(phone).replace(/\D/g, '');
+  if (p.startsWith('00')) p = p.slice(2);
+  if (p.length === 8) p = '506' + p; // Costa Rica default
+  return p;
+}
+
+export function waLink(phone, message) {
+  const p = phoneToWhatsApp(phone);
+  const text = encodeURIComponent(message || '');
+  return `https://wa.me/${p}?text=${text}`;
+}
+
+export function orderStatusMessage(order, businessName) {
+  const name = order.client?.name || 'Cliente';
+  const total = formatMoney(order.total);
+  const biz = businessName || 'nosotros';
+  switch (order.status) {
+    case 'nuevo':
+      return `¡Hola ${name}! 👋 Recibimos tu pedido en *${biz}*. Total: *${total}*. Ya lo estamos revisando.`;
+    case 'preparacion':
+      return `¡Hola ${name}! 👨‍🍳 Tu pedido en *${biz}* ya está *en preparación*. Total: *${total}*. ¡Pronto estará listo!`;
+    case 'listo':
+      if (order.isExpress) {
+        return `¡Hola ${name}! ✅ Tu pedido en *${biz}* está *listo* y va en camino. Total: *${total}*. ¡Gracias!`;
+      }
+      return `¡Hola ${name}! ✅ Tu pedido en *${biz}* está *listo* para recoger. Total: *${total}*. ¡Te esperamos!`;
+    default:
+      return `¡Hola ${name}! Tu pedido en *${biz}*. Total: *${total}*.`;
+  }
+}
+
+export function buildManualOrderMessage(order, businessName) {
+  const name = order.client?.name || 'Cliente';
+  const biz = businessName || 'el negocio';
+  const lines = (order.items || []).map(
+    (i) => `• ${i.qty}x ${i.name} — ${formatMoney(i.price * i.qty)}`
+  );
+  const express = order.isExpress
+    ? `\n🛵 Express: ${order.locationName || 'Sí'} (+${formatMoney(order.expressFee || 0)})`
+    : '\n🏪 Retiro en local';
+  const pay =
+    order.paymentMethod === 'sinpe'
+      ? 'Sinpe Móvil'
+      : order.cashAmount
+        ? `Efectivo (paga con ${formatMoney(order.cashAmount)})`
+        : 'Efectivo';
+
+  return (
+    `¡Hola ${name}! 🍽️ Pedido de *${biz}*\n\n` +
+    `${lines.join('\n')}\n` +
+    express +
+    `\n💳 Pago: ${pay}` +
+    `\n💰 *Total: ${formatMoney(order.total)}*` +
+    (order.notes ? `\n📝 Notas: ${order.notes}` : '') +
+    `\n\n¡Gracias por tu pedido!`
+  );
+}
+
+export function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 48);
+}
+
+export function generateId(prefix = '') {
+  const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  return prefix ? `${prefix}_${id}` : id;
+}
+
+export function debounce(fn, ms = 300) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+export function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+export function getQueryParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+export function setActiveNav(page) {
+  document.querySelectorAll('[data-nav]').forEach((el) => {
+    el.classList.toggle('active', el.getAttribute('data-nav') === page);
+  });
+}
+
+export function startOfDay(d = new Date()) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+export function endOfDay(d = new Date()) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+export function rangeForFilter(filter) {
+  const now = new Date();
+  const end = endOfDay(now);
+  let start;
+  switch (filter) {
+    case 'week': {
+      start = startOfDay(now);
+      start.setDate(start.getDate() - 6);
+      break;
+    }
+    case 'month': {
+      start = startOfDay(now);
+      start.setDate(1);
+      break;
+    }
+    case 'year': {
+      start = startOfDay(now);
+      start.setMonth(0, 1);
+      break;
+    }
+    case 'day':
+    default:
+      start = startOfDay(now);
+  }
+  return { start, end };
+}
+
+export function orderTotal(items, expressFee = 0) {
+  const sub = (items || []).reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0);
+  return { subtotal: sub, total: sub + (Number(expressFee) || 0) };
+}
+
+/** Disable browser zoom gestures where possible */
+export function lockViewportZoom() {
+  document.addEventListener(
+    'touchmove',
+    (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    },
+    { passive: false }
+  );
+  let lastTouchEnd = 0;
+  document.addEventListener(
+    'touchend',
+    (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) e.preventDefault();
+      lastTouchEnd = now;
+    },
+    false
+  );
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('gesturechange', (e) => e.preventDefault());
+  document.addEventListener('gestureend', (e) => e.preventDefault());
+  document.addEventListener(
+    'wheel',
+    (e) => {
+      if (e.ctrlKey) e.preventDefault();
+    },
+    { passive: false }
+  );
+}
