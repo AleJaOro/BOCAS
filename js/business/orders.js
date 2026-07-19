@@ -28,7 +28,7 @@ import {
   orderTotal,
   phoneToWhatsApp
 } from '../utils.js';
-import { toast, playOrderSound } from '../notifications.js';
+import { toast, notifyNewOrder } from '../notifications.js';
 
 const STATUS_LABEL = {
   nuevo: 'Nuevo',
@@ -49,8 +49,9 @@ export function clientsCol(businessId) {
 /**
  * Realtime listener — true push updates (better than 1s polling)
  */
-export function listenOrders(businessId, { onChange, onlyActive = true } = {}) {
-  let q = query(ordersCol(businessId), orderBy('createdAt', 'desc'), limit(100));
+export function listenOrders(businessId, { onChange, onlyActive = true, businessName = '' } = {}) {
+  // Cap results for speed at scale (active kitchen board)
+  let q = query(ordersCol(businessId), orderBy('createdAt', 'desc'), limit(onlyActive ? 60 : 100));
   let knownIds = new Set();
   let first = true;
 
@@ -63,13 +64,22 @@ export function listenOrders(businessId, { onChange, onlyActive = true } = {}) {
       if (!first) {
         const incoming = orders.filter((o) => !knownIds.has(o.id) && o.status === 'nuevo');
         if (incoming.length) {
-          playOrderSound();
+          const names = incoming.map((o) => o.client?.name || 'Cliente').join(', ');
+          const totalHint =
+            incoming.length === 1
+              ? `Total ${orders.find((x) => x.id === incoming[0].id)?.total != null ? '₡' + Number(incoming[0].total).toLocaleString('es-CR') : ''}`
+              : `${incoming.length} pedidos nuevos`;
+          notifyNewOrder({
+            title: incoming.length === 1 ? `¡Nuevo pedido! · ${businessName || 'Bocas'}` : `¡${incoming.length} pedidos nuevos!`,
+            body: `${names}${totalHint ? ' · ' + totalHint : ''}`,
+            tag: 'bocas-order-' + incoming[0].id
+          });
           toast(
             incoming.length === 1
               ? `Nuevo pedido de ${incoming[0].client?.name || 'cliente'}`
               : `${incoming.length} pedidos nuevos`,
             'info',
-            5000
+            6000
           );
         }
       }
@@ -146,7 +156,11 @@ export async function createOrder(businessId, orderData, businessName) {
       name: i.name,
       price: Number(i.price) || 0,
       qty: Number(i.qty) || 1,
-      notes: i.notes || ''
+      notes: i.notes || '',
+      optionsNote: i.optionsNote || '',
+      selection: i.selection || null,
+      menuItemId: i.menuItemId || i.id || null,
+      kind: i.kind || 'item'
     })),
     isExpress: !!orderData.isExpress,
     locationId: orderData.locationId || null,
@@ -199,7 +213,9 @@ export function renderOrderCard(order, businessName) {
   const itemsHtml = (order.items || [])
     .map(
       (i) =>
-        `<li><span>${escapeHtml(String(i.qty))}× ${escapeHtml(i.name)}</span><span>${formatMoney(i.price * i.qty)}</span></li>`
+        `<li><span>${escapeHtml(String(i.qty))}× ${escapeHtml(i.name)}${
+          i.optionsNote ? `<div class="xs muted">${escapeHtml(i.optionsNote)}</div>` : ''
+        }</span><span>${formatMoney(i.price * i.qty)}</span></li>`
     )
     .join('');
 

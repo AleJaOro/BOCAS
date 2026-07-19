@@ -1,5 +1,5 @@
 /**
- * Business — digital menu CRUD + image upload
+ * Business — digital menu CRUD + image upload + product options
  */
 import {
   collection,
@@ -19,6 +19,8 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js';
 import { db, storage } from '../firebase-config.js';
 import { formatMoney, escapeHtml, generateId } from '../utils.js';
+import { normalizeItemOptions, optionsSummaryBadges } from '../product-options.js';
+import { cacheDelPrefix } from '../cache.js';
 
 export function categoriesCol(businessId) {
   return collection(db, 'businesses', businessId, 'categories');
@@ -67,10 +69,49 @@ export async function uploadMenuImage(businessId, file) {
   return getDownloadURL(r);
 }
 
+function sanitizeOptions(options) {
+  const n = normalizeItemOptions({ options });
+  const cleanList = (arr) =>
+    (arr || [])
+      .filter((o) => o && String(o.name || '').trim())
+      .map((o) => ({
+        id: o.id || generateId('opt'),
+        name: String(o.name).trim(),
+        priceMode: ['same', 'delta', 'absolute'].includes(o.priceMode) ? o.priceMode : 'same',
+        price: Number(o.price) || 0
+      }));
+
+  return {
+    variants: {
+      enabled: !!n.variants.enabled && cleanList(n.variants.options).length > 0,
+      label: n.variants.label || 'Variante / tamaño',
+      required: n.variants.required !== false,
+      options: cleanList(n.variants.options)
+    },
+    modifiers: {
+      enabled: !!n.modifiers.enabled && cleanList(n.modifiers.options).length > 0,
+      label: n.modifiers.label || 'Extras / modificadores',
+      multi: n.modifiers.multi !== false,
+      options: cleanList(n.modifiers.options).map((o) => ({
+        ...o,
+        priceMode: o.priceMode === 'absolute' ? 'delta' : o.priceMode
+      }))
+    },
+    halves: {
+      enabled: !!n.halves.enabled && cleanList(n.halves.options).length >= 2,
+      label: n.halves.label || 'Mitades',
+      options: cleanList(n.halves.options).map((o) => ({
+        ...o,
+        priceMode: o.priceMode === 'absolute' ? 'delta' : o.priceMode
+      }))
+    }
+  };
+}
+
 export async function addMenuItem(businessId, item, imageFile) {
   let imageUrl = item.imageUrl || '';
   if (imageFile) imageUrl = await uploadMenuImage(businessId, imageFile);
-  return addDoc(menuItemsCol(businessId), {
+  const refDoc = await addDoc(menuItemsCol(businessId), {
     name: item.name.trim(),
     description: item.description || '',
     price: Number(item.price) || 0,
@@ -78,9 +119,13 @@ export async function addMenuItem(businessId, item, imageFile) {
     imageUrl,
     active: item.active !== false,
     available: item.available !== false,
+    options: sanitizeOptions(item.options),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+  cacheDelPrefix(`pub_menu_${businessId}`);
+  cacheDelPrefix(`menu_${businessId}`);
+  return refDoc;
 }
 
 export async function updateMenuItem(businessId, id, item, imageFile) {
@@ -91,15 +136,27 @@ export async function updateMenuItem(businessId, id, item, imageFile) {
     categoryId: item.categoryId || '',
     active: item.active !== false,
     available: item.available !== false,
+    options: sanitizeOptions(item.options),
     updatedAt: serverTimestamp()
   };
   if (imageFile) data.imageUrl = await uploadMenuImage(businessId, imageFile);
   else if (item.imageUrl !== undefined) data.imageUrl = item.imageUrl;
   await updateDoc(doc(db, 'businesses', businessId, 'menuItems', id), data);
+  cacheDelPrefix(`pub_menu_${businessId}`);
+  cacheDelPrefix(`menu_${businessId}`);
 }
 
 export async function deleteMenuItem(businessId, id) {
   await deleteDoc(doc(db, 'businesses', businessId, 'menuItems', id));
+  cacheDelPrefix(`pub_menu_${businessId}`);
+}
+
+export async function setMenuItemAvailable(businessId, id, available) {
+  await updateDoc(doc(db, 'businesses', businessId, 'menuItems', id), {
+    available: !!available,
+    updatedAt: serverTimestamp()
+  });
+  cacheDelPrefix(`pub_menu_${businessId}`);
 }
 
 export function renderMenuItemsList(items, categories, container) {
@@ -110,24 +167,31 @@ export function renderMenuItemsList(items, categories, container) {
   }
   container.innerHTML = items
     .map((item) => {
+      const soldOut = item.available === false;
+      const badges = optionsSummaryBadges(item);
       const img = item.imageUrl
-        ? `<img class="menu-item-img" src="${escapeHtml(item.imageUrl)}" alt="" />`
+        ? `<img class="menu-item-img ${soldOut ? 'is-soldout' : ''}" src="${escapeHtml(item.imageUrl)}" alt="" />`
         : `<div class="menu-item-img placeholder">🍽️</div>`;
       return `
-        <div class="menu-item-card" data-id="${item.id}">
+        <div class="menu-item-card ${soldOut ? 'soldout-card' : ''}" data-id="${item.id}">
           ${img}
           <div class="menu-item-body">
             <div class="menu-item-name">${escapeHtml(item.name)}</div>
             <div class="xs">${escapeHtml(catMap[item.categoryId] || 'Sin categoría')}</div>
             <div class="small muted truncate">${escapeHtml(item.description || '')}</div>
-            <div class="mt-1">
-              ${item.available === false ? '<span class="badge badge-warning">Agotado</span>' : '<span class="badge badge-success">Disponible</span>'}
+            <div class="mt-1 flex flex-wrap gap-1">
+              ${soldOut ? '<span class="badge badge-warning">Agotado</span>' : '<span class="badge badge-success">Disponible</span>'}
               ${item.active === false ? '<span class="badge badge-danger">Oculto</span>' : ''}
+              ${badges.map((b) => `<span class="badge badge-info">${escapeHtml(b)}</span>`).join('')}
             </div>
           </div>
           <div class="text-right">
             <div class="menu-item-price">${formatMoney(item.price)}</div>
-            <div class="flex gap-1 mt-1" style="justify-content:flex-end">
+            <div class="xs muted">base</div>
+            <div class="flex gap-1 mt-1 flex-wrap" style="justify-content:flex-end">
+              <button type="button" class="btn btn-sm ${soldOut ? 'btn-success' : 'btn-ghost'}" data-act="soldout" data-id="${item.id}">
+                ${soldOut ? 'Disponible' : 'Agotar'}
+              </button>
               <button type="button" class="btn btn-sm btn-secondary" data-act="edit" data-id="${item.id}">Editar</button>
               <button type="button" class="btn btn-sm btn-danger" data-act="del" data-id="${item.id}">×</button>
             </div>
