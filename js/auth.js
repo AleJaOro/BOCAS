@@ -149,60 +149,109 @@ export async function requireRole(role) {
   return { user, profile };
 }
 
-/** Create first admin if none exists (uses meta/system — no list permission needed) */
+/**
+ * Create first admin.
+ * IMPORTANT: Auth user is created FIRST (no Firestore read before that),
+ * so a rules/permission error no longer blocks Authentication signup.
+ */
 export async function setupAdmin({ email, password, name }) {
+  const cleanEmail = email.trim().toLowerCase();
   const metaRef = doc(db, 'meta', 'system');
-  try {
-    const metaSnap = await getDoc(metaRef);
-    if (metaSnap.exists() && metaSnap.data().setupCompleted === true) {
-      throw new Error('Ya existe un administrador. Usa el login normal.');
-    }
-  } catch (err) {
-    if (err.message?.includes('Ya existe')) throw err;
-    // If meta unreadable, continue — rules should allow public read
-  }
-
   let user;
+
+  // 1) Auth first — must work even if Firestore rules are wrong
   try {
-    const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
     user = cred.user;
-    await updateProfile(user, { displayName: name });
+    try {
+      await updateProfile(user, { displayName: name || 'Administrador' });
+    } catch {
+      /* optional */
+    }
   } catch (err) {
-    // Auth user may already exist from a failed previous attempt
     if (err.code === 'auth/email-already-in-use') {
-      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      user = cred.user;
-      const existingProfile = await getUserProfile(user.uid);
-      if (existingProfile?.role === 'admin') {
-        await setDoc(metaRef, {
-          setupCompleted: true,
-          setupAt: serverTimestamp(),
-          version: '1.0.0'
-        }, { merge: true });
-        throw new Error('El admin ya estaba creado. Ve a Login.');
+      try {
+        const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        user = cred.user;
+      } catch (signErr) {
+        throw mapAuthError(signErr);
       }
+    } else if (err.code === 'auth/operation-not-allowed') {
+      throw new Error(
+        'Email/Password no está activado en Firebase. Ve a Authentication → Sign-in method → Email/Password → Enable.'
+      );
+    } else if (err.code === 'auth/unauthorized-domain') {
+      throw new Error(
+        'Dominio no autorizado. En Firebase → Authentication → Settings → Authorized domains agrega: alejaoro.github.io'
+      );
     } else {
-      throw err;
+      throw mapAuthError(err);
     }
   }
 
-  // Write profile first (bootstrap rules allow role=admin when !setupDone)
-  await setDoc(doc(db, 'users', user.uid), {
-    email: email.trim().toLowerCase(),
-    name: name || 'Administrador',
-    role: 'admin',
-    status: 'active',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
+  // 2) If profile already exists as admin, mark setup and stop
+  try {
+    const existingProfile = await getUserProfile(user.uid);
+    if (existingProfile?.role === 'admin') {
+      try {
+        await setDoc(
+          metaRef,
+          { setupCompleted: true, setupAt: serverTimestamp(), version: '1.0.0' },
+          { merge: true }
+        );
+      } catch {
+        /* ignore */
+      }
+      throw new Error('El administrador ya existe. Ve a Login e ingresa con ese correo.');
+    }
+  } catch (err) {
+    if (err.message?.includes('ya existe') || err.message?.includes('Login')) throw err;
+    // permission on read is ok — we still try to write profile
+  }
 
-  await setDoc(metaRef, {
-    setupCompleted: true,
-    setupAt: serverTimestamp(),
-    version: '1.0.0'
-  }, { merge: true });
+  // 3) Firestore profile + meta
+  try {
+    await setDoc(doc(db, 'users', user.uid), {
+      email: cleanEmail,
+      name: name || 'Administrador',
+      role: 'admin',
+      status: 'active',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    await setDoc(
+      metaRef,
+      {
+        setupCompleted: true,
+        setupAt: serverTimestamp(),
+        version: '1.0.0'
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    if (err.code === 'permission-denied' || /insufficient permissions/i.test(err.message || '')) {
+      throw new Error(
+        'FIRESTORE_RULES: Auth creó el usuario, pero Firestore bloqueó el perfil. ' +
+          'En Firebase Console → Firestore → Rules pega las reglas del proyecto y Publish. ' +
+          'Luego vuelve a pulsar Crear (misma contraseña).'
+      );
+    }
+    throw err;
+  }
 
   return user;
+}
+
+function mapAuthError(err) {
+  const code = err?.code || '';
+  if (code === 'auth/invalid-email') return new Error('Correo no válido.');
+  if (code === 'auth/weak-password') return new Error('Contraseña débil (mínimo 6 caracteres).');
+  if (code === 'auth/network-request-failed') {
+    return new Error('Sin conexión o Firebase bloqueado. Revisa internet o el adblock.');
+  }
+  if (code === 'auth/too-many-requests') return new Error('Demasiados intentos. Espera un minuto.');
+  return new Error(err?.message || 'Error de autenticación.');
 }
 
 export async function adminExists() {
