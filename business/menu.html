@@ -47,10 +47,13 @@
           <button type="button" class="menu-toggle" id="menuToggle">☰</button>
           <h1 class="page-title">Menú digital</h1>
         </div>
-        <div class="flex gap-1 flex-wrap">
-          <button type="button" class="btn btn-secondary btn-sm" id="copyLink">Copiar enlace</button>
-          <button type="button" class="btn btn-secondary btn-sm" id="openPromo">+ Promo/Combo</button>
-          <button type="button" class="btn btn-primary btn-sm" id="openItem">+ Platillo</button>
+        <div class="topbar-actions" id="topbarActions">
+          <button type="button" class="btn btn-secondary btn-sm topbar-more" id="topbarMore" aria-expanded="false">Acciones ▾</button>
+          <div class="topbar-actions-menu" id="topbarMenu">
+            <button type="button" class="btn btn-secondary btn-sm" id="copyLink">Copiar enlace</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="openPromo">+ Promo/Combo</button>
+            <button type="button" class="btn btn-primary btn-sm" id="openItem">+ Platillo</button>
+          </div>
         </div>
       </header>
 
@@ -69,10 +72,10 @@
             </div>
             <p class="small muted mb-1">Compártelo o imprímelo para mesas / redes.</p>
             <input class="form-input mb-1" id="publicLink" readonly />
-            <div class="flex gap-1 flex-wrap mb-2">
-              <button type="button" class="btn btn-ghost btn-sm" id="copyLink2">Copiar</button>
-              <a id="openPublic" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Abrir ↗</a>
-              <button type="button" class="btn btn-primary btn-sm" id="dlQr">Descargar QR PNG</button>
+            <div class="action-stack mb-2">
+              <button type="button" class="btn btn-ghost btn-sm" id="copyLink2">Copiar enlace</button>
+              <a id="openPublic" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Abrir menú ↗</a>
+              <button type="button" class="btn btn-primary btn-sm" id="dlQr">⬇ Descargar QR PNG</button>
             </div>
             <div class="qr-box" id="qrBox">
               <canvas id="qrCanvas" width="220" height="220" aria-label="Código QR del menú"></canvas>
@@ -142,45 +145,60 @@
         <p class="small muted mb-2">Opciones del cliente (selectores en el menú público). Precio: <strong>Mismo</strong>, <strong>Sumar ₡</strong> o en variantes <strong>Precio fijo</strong>.</p>
 
         <!-- Variants -->
-        <div class="options-block card mb-2" style="padding:1rem">
-          <div class="flex justify-between items-center gap-2 mb-1">
-            <label class="form-check"><input type="checkbox" id="varEnabled" /> <strong>Variantes</strong> (ej. 8 / 12 / 16 pedazos)</label>
-            <button type="button" class="btn btn-sm btn-secondary" id="addVarOpt">+ Opción</button>
+        <details class="options-details mb-2" open>
+          <summary class="options-summary">
+            <span>Variantes <span class="xs muted">(tamaños, porciones…)</span></span>
+          </summary>
+          <div class="options-block card" style="padding:1rem;border-top-left-radius:0;border-top-right-radius:0">
+            <div class="options-toolbar">
+              <label class="form-check"><input type="checkbox" id="varEnabled" /> Activar variantes</label>
+              <button type="button" class="btn btn-sm btn-secondary" id="addVarOpt">+ Opción</button>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="varLabel">Nombre del selector</label>
+              <input class="form-input" id="varLabel" value="Tamaño" placeholder="Tamaño" />
+            </div>
+            <div class="option-editor-head xs muted mb-1"><span>Nombre</span><span>Precio</span><span>₡</span><span></span></div>
+            <div id="varRows" class="option-editor-list"></div>
           </div>
-          <div class="form-group">
-            <label class="form-label" for="varLabel">Nombre del selector</label>
-            <input class="form-input" id="varLabel" value="Tamaño" placeholder="Tamaño" />
-          </div>
-          <div class="option-editor-head xs muted mb-1"><span>Nombre</span><span>Precio</span><span>₡</span><span></span></div>
-          <div id="varRows" class="option-editor-list"></div>
-        </div>
+        </details>
 
         <!-- Modifiers -->
-        <div class="options-block card mb-2" style="padding:1rem">
-          <div class="flex justify-between items-center gap-2 mb-1">
-            <label class="form-check"><input type="checkbox" id="modEnabled" /> <strong>Extras / modificadores</strong> (ej. extra pepinillo)</label>
-            <button type="button" class="btn btn-sm btn-secondary" id="addModOpt">+ Extra</button>
+        <details class="options-details mb-2">
+          <summary class="options-summary">
+            <span>Extras / modificadores <span class="xs muted">(pepinillo, queso…)</span></span>
+          </summary>
+          <div class="options-block card" style="padding:1rem;border-top-left-radius:0;border-top-right-radius:0">
+            <div class="options-toolbar">
+              <label class="form-check"><input type="checkbox" id="modEnabled" /> Activar extras</label>
+              <button type="button" class="btn btn-sm btn-secondary" id="addModOpt">+ Extra</button>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="modLabel">Nombre del selector</label>
+              <input class="form-input" id="modLabel" value="Extras" placeholder="Extras" />
+            </div>
+            <div id="modRows" class="option-editor-list"></div>
           </div>
-          <div class="form-group">
-            <label class="form-label" for="modLabel">Nombre del selector</label>
-            <input class="form-input" id="modLabel" value="Extras" placeholder="Extras" />
-          </div>
-          <div id="modRows" class="option-editor-list"></div>
-        </div>
+        </details>
 
         <!-- Halves -->
-        <div class="options-block card mb-2" style="padding:1rem">
-          <div class="flex justify-between items-center gap-2 mb-1">
-            <label class="form-check"><input type="checkbox" id="halfEnabled" /> <strong>Mitades</strong> (ej. ½ jamón / ½ hawaiana)</label>
-            <button type="button" class="btn btn-sm btn-secondary" id="addHalfOpt">+ Sabor</button>
+        <details class="options-details mb-2">
+          <summary class="options-summary">
+            <span>Mitades <span class="xs muted">(½ y ½)</span></span>
+          </summary>
+          <div class="options-block card" style="padding:1rem;border-top-left-radius:0;border-top-right-radius:0">
+            <div class="options-toolbar">
+              <label class="form-check"><input type="checkbox" id="halfEnabled" /> Activar mitades</label>
+              <button type="button" class="btn btn-sm btn-secondary" id="addHalfOpt">+ Sabor</button>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="halfLabel">Nombre del selector</label>
+              <input class="form-input" id="halfLabel" value="Mitades" placeholder="Mitades" />
+            </div>
+            <p class="xs muted mb-1">Agrega al menos 2 sabores. El cliente elige Mitad 1 y Mitad 2.</p>
+            <div id="halfRows" class="option-editor-list"></div>
           </div>
-          <div class="form-group">
-            <label class="form-label" for="halfLabel">Nombre del selector</label>
-            <input class="form-input" id="halfLabel" value="Mitades" placeholder="Mitades" />
-          </div>
-          <p class="xs muted mb-1">Agrega al menos 2 sabores. El cliente elige Mitad 1 y Mitad 2.</p>
-          <div id="halfRows" class="option-editor-list"></div>
-        </div>
+        </details>
 
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="cancelItem">Cancelar</button>
@@ -269,7 +287,7 @@
       optionRowHtml,
       collectOptionRows
     } from '../js/product-options.js';
-    import { drawQrToCanvas, downloadCanvasPng } from '../js/qr.js';
+    import { drawQrToCanvas, downloadQrPng } from '../js/qr.js';
 
     const session = await requireRole('business');
     if (!session) throw new Error('auth');
@@ -307,19 +325,48 @@
     }
     drawQr();
 
-    document.getElementById('dlQr').addEventListener('click', () => {
+    // Mobile: topbar actions menu
+    const moreBtn = document.getElementById('topbarMore');
+    const actionsWrap = document.getElementById('topbarActions');
+    moreBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = actionsWrap.classList.toggle('is-open');
+      moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', (e) => {
+      if (!actionsWrap?.contains(e.target)) {
+        actionsWrap?.classList.remove('is-open');
+        moreBtn?.setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.getElementById('topbarMenu')?.addEventListener('click', () => {
+      // close after choosing an action on mobile
+      if (window.matchMedia('(max-width: 768px)').matches) {
+        actionsWrap?.classList.remove('is-open');
+        moreBtn?.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    document.getElementById('dlQr').addEventListener('click', async () => {
       const canvas = document.getElementById('qrCanvas');
-      const name = `menu-qr-${businessName.replace(/\s+/g, '-').slice(0, 24)}.png`;
+      const name = `menu-qr-${(businessName || 'menu').replace(/[^\w\-]+/g, '-').slice(0, 24)}.png`;
+      const btn = document.getElementById('dlQr');
+      btn.disabled = true;
+      const prev = btn.textContent;
+      btn.textContent = 'Descargando…';
       try {
-        downloadCanvasPng(canvas, name);
+        await downloadQrPng(link, name, canvas);
         toast('QR descargado', 'success');
       } catch (err) {
-        // Fallback: open API image to save manually
-        window.open(
-          'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent(link),
-          '_blank'
-        );
-        toast('Se abrió el QR en otra pestaña (guarda la imagen)', 'info');
+        if (err?.code === 'OPEN_FALLBACK') {
+          toast('Se abrió el QR. En el celular: mantén pulsada la imagen → Guardar', 'info', 6000);
+        } else {
+          console.error(err);
+          toast(err.message || 'No se pudo descargar. Prueba de nuevo.', 'error');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
       }
     });
 
