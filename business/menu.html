@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/main.css" />
   <link rel="stylesheet" href="../css/business.css" />
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -76,8 +75,8 @@
               <button type="button" class="btn btn-primary btn-sm" id="dlQr">Descargar QR PNG</button>
             </div>
             <div class="qr-box" id="qrBox">
-              <canvas id="qrCanvas" width="200" height="200"></canvas>
-              <p class="xs text-center mt-1">Escanea para ver el menú</p>
+              <canvas id="qrCanvas" width="220" height="220" aria-label="Código QR del menú"></canvas>
+              <p class="xs text-center mt-1" id="qrHint">Generando código QR…</p>
             </div>
           </div>
         </div>
@@ -270,6 +269,7 @@
       optionRowHtml,
       collectOptionRows
     } from '../js/product-options.js';
+    import { drawQrToCanvas, downloadCanvasPng } from '../js/qr.js';
 
     const session = await requireRole('business');
     if (!session) throw new Error('auth');
@@ -283,26 +283,44 @@
     document.getElementById('publicLink').value = link;
     document.getElementById('openPublic').href = link;
 
-    function drawQr() {
+    async function drawQr() {
       const canvas = document.getElementById('qrCanvas');
-      if (typeof QRCode === 'undefined') return;
-      QRCode.toCanvas(canvas, link, {
-        width: 200,
-        margin: 2,
-        color: { dark: '#111827', light: '#ffffff' }
-      }, (err) => {
-        if (err) console.warn(err);
-      });
+      const hint = document.getElementById('qrHint');
+      if (!link) {
+        if (hint) hint.textContent = 'No hay enlace del menú';
+        return;
+      }
+      try {
+        if (hint) hint.textContent = 'Generando código QR…';
+        await drawQrToCanvas(canvas, link, 220);
+        if (hint) hint.textContent = 'Escanea para ver el menú';
+      } catch (err) {
+        console.error(err);
+        if (hint) {
+          hint.innerHTML =
+            'No se pudo generar el QR aquí. <a href="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' +
+            encodeURIComponent(link) +
+            '" target="_blank" rel="noopener">Abrir QR en nueva pestaña</a>';
+        }
+        toast('Error al generar QR. Prueba el enlace alternativo bajo el código.', 'warning', 5000);
+      }
     }
     drawQr();
 
     document.getElementById('dlQr').addEventListener('click', () => {
       const canvas = document.getElementById('qrCanvas');
-      const a = document.createElement('a');
-      a.download = `menu-qr-${businessName.replace(/\s+/g, '-').slice(0, 24)}.png`;
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-      toast('QR descargado', 'success');
+      const name = `menu-qr-${businessName.replace(/\s+/g, '-').slice(0, 24)}.png`;
+      try {
+        downloadCanvasPng(canvas, name);
+        toast('QR descargado', 'success');
+      } catch (err) {
+        // Fallback: open API image to save manually
+        window.open(
+          'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' + encodeURIComponent(link),
+          '_blank'
+        );
+        toast('Se abrió el QR en otra pestaña (guarda la imagen)', 'info');
+      }
     });
 
     const copy = async () => {
