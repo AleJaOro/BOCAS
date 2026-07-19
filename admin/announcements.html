@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Anuncios — Admin Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-text">Bocas</div>
+          <div class="brand-sub">Admin</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="./"><span>📊</span> Dashboard</a>
+        <a class="nav-item" href="businesses.html"><span>🏪</span> Negocios</a>
+        <a class="nav-item" href="stats.html"><span>📈</span> Estadísticas</a>
+        <a class="nav-item active" href="announcements.html"><span>📢</span> Anuncios</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrador</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm w-full mt-1" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-toggle" id="menuToggle">☰</button>
+          <h1 class="page-title">Anuncios a negocios</h1>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="openNew">+ Nuevo anuncio</button>
+      </header>
+
+      <div class="page-content">
+        <p class="muted small mb-2">
+          Los anuncios activos se muestran en el dashboard principal de cada negocio y quedan guardados en sus Ajustes.
+        </p>
+        <div id="list" class="grid gap-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Publicar anuncio</h3>
+        <button type="button" class="btn btn-ghost btn-icon" id="closeM">×</button>
+      </div>
+      <form id="form">
+        <div class="form-group">
+          <label class="form-label" for="title">Título *</label>
+          <input class="form-input" id="title" required placeholder="Nueva función: códigos QR" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="body">Mensaje *</label>
+          <textarea class="form-textarea" id="body" required rows="5" placeholder="Cuéntales a todos los negocios la novedad…"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="cancelM">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Publicar a todos</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireRole } from '../js/auth.js';
+    import { initShell } from '../js/shell.js';
+    import {
+      listAnnouncements,
+      createAnnouncement,
+      updateAnnouncement,
+      deleteAnnouncement,
+      renderAnnouncementCards
+    } from '../js/announcements.js';
+    import { toast, confirmDialog } from '../js/notifications.js';
+
+    const session = await requireRole('admin');
+    if (!session) throw new Error('auth');
+    initShell({ userName: session.profile.name, roleLabel: 'Administrador' });
+
+    const listEl = document.getElementById('list');
+    let items = [];
+
+    async function refresh() {
+      items = await listAnnouncements(50);
+      listEl.innerHTML = renderAnnouncementCards(items, {}, { showActions: true });
+    }
+
+    const modal = document.getElementById('modal');
+    const openM = () => {
+      modal.classList.remove('hidden');
+      requestAnimationFrame(() => modal.classList.add('modal-in'));
+    };
+    const closeM = () => {
+      modal.classList.add('modal-out');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('modal-in', 'modal-out');
+      }, 200);
+    };
+    document.getElementById('openNew').addEventListener('click', openM);
+    document.getElementById('closeM').addEventListener('click', closeM);
+    document.getElementById('cancelM').addEventListener('click', closeM);
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await createAnnouncement({
+          title: document.getElementById('title').value,
+          body: document.getElementById('body').value,
+          authorName: session.profile.name || 'Admin'
+        });
+        toast('Anuncio publicado a todos los negocios', 'success');
+        document.getElementById('form').reset();
+        closeM();
+        await refresh();
+      } catch (err) {
+        toast(err.message || 'Error', 'error');
+      }
+    });
+
+    listEl.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const item = items.find((x) => x.id === id);
+      try {
+        if (btn.dataset.act === 'toggle') {
+          await updateAnnouncement(id, { active: item.active === false });
+          toast(item.active === false ? 'Activado' : 'Archivado', 'success');
+          await refresh();
+        } else if (btn.dataset.act === 'del') {
+          const ok = await confirmDialog({
+            title: 'Eliminar anuncio',
+            message: 'Se borrará para todos.',
+            confirmText: 'Eliminar',
+            danger: true
+          });
+          if (!ok) return;
+          await deleteAnnouncement(id);
+          toast('Eliminado', 'info');
+          await refresh();
+        }
+      } catch (err) {
+        toast(err.message || 'Error', 'error');
+      }
+    });
+
+    try {
+      await refresh();
+    } catch (err) {
+      toast(err.message || 'Error cargando anuncios', 'error');
+    }
+  </script>
+</body>
+</html>
