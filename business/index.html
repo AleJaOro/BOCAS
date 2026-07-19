@@ -49,6 +49,7 @@
           <span class="live-bar"><span class="live-dot"></span> En vivo</span>
         </div>
         <div class="flex gap-1 flex-wrap">
+          <button type="button" class="btn btn-secondary btn-sm" id="enableAlerts" title="Sonido + notificaciones">🔔 Activar alertas</button>
           <div class="tabs" id="viewTabs">
             <button type="button" class="tab active" data-view="grid">Tarjetas</button>
             <button type="button" class="tab" data-view="kanban">Columnas</button>
@@ -58,6 +59,7 @@
       </header>
 
       <div class="page-content">
+        <div id="announcementsBanner" class="mb-2 hidden"></div>
         <div id="ordersBoard" class="orders-grid">
           <div class="loading-block" style="grid-column:1/-1"><div class="spinner"></div>Conectando pedidos en tiempo real…</div>
         </div>
@@ -167,7 +169,19 @@
       whatsappConfirmOrder
     } from '../js/business/orders.js';
     import { formatMoney, debounce, escapeHtml } from '../js/utils.js';
-    import { toast } from '../js/notifications.js';
+    import {
+      toast,
+      enableKitchenAlerts,
+      unlockAudio,
+      registerServiceWorker,
+      alertsEnabled
+    } from '../js/notifications.js';
+    import {
+      listActiveAnnouncements,
+      getReadMap,
+      markAnnouncementRead,
+      renderAnnouncementCards
+    } from '../js/announcements.js';
 
     const session = await requireRole('business');
     if (!session) throw new Error('auth');
@@ -184,16 +198,56 @@
     initShell({ userName: session.profile.name || businessName, roleLabel: businessName });
     document.getElementById('bizBrand').textContent = businessName;
 
+    // Unlock audio + SW early; user can tap "Activar alertas" for permission
+    unlockAudio();
+    registerServiceWorker();
+    document.getElementById('enableAlerts').addEventListener('click', () => enableKitchenAlerts());
+    document.body.addEventListener('click', () => unlockAudio(), { once: true });
+    if (alertsEnabled()) {
+      document.getElementById('enableAlerts').textContent = '🔔 Alertas ON';
+    }
+
+    // Platform announcements (unread on main dashboard)
+    try {
+      const [ann, reads] = await Promise.all([
+        listActiveAnnouncements(10),
+        getReadMap(session.user.uid)
+      ]);
+      const unread = ann.filter((a) => !reads[a.id]);
+      const banner = document.getElementById('announcementsBanner');
+      if (unread.length) {
+        banner.classList.remove('hidden');
+        banner.innerHTML = `
+          <div class="card" style="border-color:#93c5fd;background:var(--info-soft)">
+            <div class="flex justify-between items-center gap-2 mb-1">
+              <strong>📢 Anuncios de Bocas (${unread.length} nuevos)</strong>
+              <a href="settings.html#anuncios" class="btn btn-sm btn-ghost">Ver todos</a>
+            </div>
+            <div class="grid gap-2">${renderAnnouncementCards(unread.slice(0, 3), reads)}</div>
+          </div>`;
+        banner.addEventListener('click', async (e) => {
+          const card = e.target.closest('[data-id]');
+          if (!card) return;
+          await markAnnouncementRead(session.user.uid, card.dataset.id);
+          card.classList.remove('announcement-unread');
+          const badge = card.querySelector('.badge-info');
+          if (badge) badge.remove();
+        });
+      }
+    } catch (err) {
+      console.warn('announcements', err);
+    }
+
     let viewMode = 'grid';
     let currentOrders = [];
     let menuItems = [];
     let locations = [];
-    let sendWaAfter = false;
 
     const board = document.getElementById('ordersBoard');
 
     // Realtime
     listenOrders(businessId, {
+      businessName,
       onChange: (orders) => {
         currentOrders = orders;
         renderOrdersBoard(orders, board, businessName, viewMode);

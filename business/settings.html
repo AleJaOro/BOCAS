@@ -50,7 +50,7 @@
       </header>
 
       <div class="page-content">
-        <div class="grid grid-2" style="align-items:start">
+        <div class="grid grid-2 mb-3" style="align-items:start">
           <form class="card" id="settingsForm">
             <div class="card-header"><div class="card-title">Datos generales</div></div>
             <div class="form-group">
@@ -101,6 +101,25 @@
             </div>
           </div>
         </div>
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <div class="card-title">Horario de atención</div>
+            <label class="form-check"><input type="checkbox" id="scheduleEnabled" /> Activar horario (cierra el menú fuera de horas)</label>
+          </div>
+          <p class="small muted mb-2">Zona horaria: Costa Rica. Si está activo, el menú público solo acepta pedidos dentro del horario.</p>
+          <div id="scheduleGrid" class="schedule-grid"></div>
+          <button type="button" class="btn btn-primary mt-2" id="saveSchedule">Guardar horario</button>
+        </div>
+
+        <div class="card" id="anuncios">
+          <div class="card-header">
+            <div class="card-title">Anuncios de Bocas</div>
+            <button type="button" class="btn btn-sm btn-ghost" id="markAllAnn">Marcar todos leídos</button>
+          </div>
+          <p class="small muted mb-2">Actualizaciones y mensajes del administrador de la plataforma.</p>
+          <div id="annList" class="grid gap-2"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -108,14 +127,29 @@
   <script type="module">
     import { requireRole } from '../js/auth.js';
     import { initShell } from '../js/shell.js';
-    import { getBusiness, updateBusinessSettings, menuPublicUrl } from '../js/business/settings.js';
+    import {
+      getBusiness,
+      updateBusinessSettings,
+      updateBusinessSchedule,
+      ensureSchedule,
+      menuPublicUrl
+    } from '../js/business/settings.js';
     import { daysRemaining, formatDateShort, licenseStatus } from '../js/utils.js';
     import { toast } from '../js/notifications.js';
+    import { DAY_KEYS, DAY_LABELS } from '../js/schedule.js';
+    import {
+      listActiveAnnouncements,
+      listAnnouncements,
+      getReadMap,
+      markAnnouncementRead,
+      markAllRead,
+      renderAnnouncementCards
+    } from '../js/announcements.js';
 
     const session = await requireRole('business');
     if (!session) throw new Error('auth');
     const businessId = session.profile.businessId;
-    const business = await getBusiness(businessId);
+    const business = await getBusiness(businessId, { fresh: true });
     if (!business) {
       toast('Negocio no encontrado', 'error');
       throw new Error('missing');
@@ -147,6 +181,47 @@
       toast('Copiado', 'success');
     });
 
+    // Schedule UI
+    const schedule = ensureSchedule(s);
+    document.getElementById('scheduleEnabled').checked = schedule.enabled === true;
+    const grid = document.getElementById('scheduleGrid');
+    grid.innerHTML = DAY_KEYS.map((k) => {
+      const d = schedule.days[k] || { open: true, from: '08:00', to: '21:00' };
+      return `
+        <div class="schedule-row" data-day="${k}">
+          <label class="form-check" style="min-width:110px">
+            <input type="checkbox" class="sch-open" ${d.open !== false ? 'checked' : ''} />
+            ${DAY_LABELS[k]}
+          </label>
+          <input type="time" class="form-input sch-from" value="${d.from || '08:00'}" />
+          <span class="muted small">a</span>
+          <input type="time" class="form-input sch-to" value="${d.to || '21:00'}" />
+        </div>`;
+    }).join('');
+
+    document.getElementById('saveSchedule').addEventListener('click', async () => {
+      const days = {};
+      grid.querySelectorAll('.schedule-row').forEach((row) => {
+        const k = row.dataset.day;
+        days[k] = {
+          open: row.querySelector('.sch-open').checked,
+          from: row.querySelector('.sch-from').value || '08:00',
+          to: row.querySelector('.sch-to').value || '21:00'
+        };
+      });
+      const payload = {
+        enabled: document.getElementById('scheduleEnabled').checked,
+        timezone: 'America/Costa_Rica',
+        days
+      };
+      try {
+        await updateBusinessSchedule(businessId, payload);
+        toast('Horario guardado', 'success');
+      } catch (err) {
+        toast(err.message || 'Error', 'error');
+      }
+    });
+
     document.getElementById('settingsForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
@@ -160,8 +235,9 @@
           menuOpen: document.getElementById('menuOpen').checked,
           expressEnabled: document.getElementById('expressEnabled').checked
         });
-        // Also update root name
-        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+        const { doc, updateDoc, serverTimestamp } = await import(
+          'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js'
+        );
         const { db } = await import('../js/firebase-config.js');
         await updateDoc(doc(db, 'businesses', businessId), {
           name: document.getElementById('name').value.trim(),
@@ -174,6 +250,40 @@
         toast(err.message || 'Error al guardar', 'error');
       }
     });
+
+    // Announcements archive
+    let annList = [];
+    let readMap = {};
+    async function loadAnn() {
+      try {
+        annList = await listAnnouncements(30);
+        readMap = await getReadMap(session.user.uid);
+        document.getElementById('annList').innerHTML = renderAnnouncementCards(annList, readMap);
+      } catch (err) {
+        document.getElementById('annList').innerHTML = `<p class="muted small">${err.message}</p>`;
+      }
+    }
+    document.getElementById('annList').addEventListener('click', async (e) => {
+      const card = e.target.closest('[data-id]');
+      if (!card) return;
+      await markAnnouncementRead(session.user.uid, card.dataset.id);
+      readMap[card.dataset.id] = true;
+      card.classList.remove('announcement-unread');
+      card.querySelector('.badge-info')?.remove();
+    });
+    document.getElementById('markAllAnn').addEventListener('click', async () => {
+      await markAllRead(
+        session.user.uid,
+        annList.map((a) => a.id)
+      );
+      toast('Marcados como leídos', 'success');
+      await loadAnn();
+    });
+    await loadAnn();
+
+    if (location.hash === '#anuncios') {
+      document.getElementById('anuncios')?.scrollIntoView({ behavior: 'smooth' });
+    }
   </script>
 </body>
 </html>

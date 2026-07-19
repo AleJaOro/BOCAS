@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/main.css" />
   <link rel="stylesheet" href="../css/business.css" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -47,8 +48,9 @@
           <button type="button" class="menu-toggle" id="menuToggle">☰</button>
           <h1 class="page-title">Menú digital</h1>
         </div>
-        <div class="flex gap-1">
+        <div class="flex gap-1 flex-wrap">
           <button type="button" class="btn btn-secondary btn-sm" id="copyLink">Copiar enlace</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="openPromo">+ Promo/Combo</button>
           <button type="button" class="btn btn-primary btn-sm" id="openItem">+ Platillo</button>
         </div>
       </header>
@@ -64,17 +66,35 @@
           </div>
           <div class="card">
             <div class="card-header">
-              <div class="card-title">Enlace público</div>
+              <div class="card-title">Enlace y código QR</div>
             </div>
-            <p class="small muted mb-1">Compártelo con tus clientes para que pidan solos.</p>
-            <input class="form-input" id="publicLink" readonly />
-            <a id="openPublic" class="btn btn-ghost btn-sm mt-1" target="_blank" rel="noopener">Abrir menú ↗</a>
+            <p class="small muted mb-1">Compártelo o imprímelo para mesas / redes.</p>
+            <input class="form-input mb-1" id="publicLink" readonly />
+            <div class="flex gap-1 flex-wrap mb-2">
+              <button type="button" class="btn btn-ghost btn-sm" id="copyLink2">Copiar</button>
+              <a id="openPublic" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Abrir ↗</a>
+              <button type="button" class="btn btn-primary btn-sm" id="dlQr">Descargar QR PNG</button>
+            </div>
+            <div class="qr-box" id="qrBox">
+              <canvas id="qrCanvas" width="200" height="200"></canvas>
+              <p class="xs text-center mt-1">Escanea para ver el menú</p>
+            </div>
           </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <div class="card-title">Promociones y combos</div>
+            <button type="button" class="btn btn-sm btn-secondary" id="openPromo2">+ Agregar</button>
+          </div>
+          <p class="small muted mb-2">Aparecen destacados en el menú del cliente. Puedes marcarlos agotados.</p>
+          <div id="promoList" class="grid gap-2"></div>
         </div>
 
         <div class="card">
           <div class="card-header">
             <div class="card-title">Platillos</div>
+            <span class="xs">Usa «Agotar» para marcar sin stock (se ve en el menú público)</span>
           </div>
           <div id="itemsList" class="grid gap-2"></div>
         </div>
@@ -82,8 +102,9 @@
     </div>
   </div>
 
+  <!-- Item modal -->
   <div class="modal-overlay hidden" id="itemModal">
-    <div class="modal modal-lg">
+    <div class="modal modal-xl">
       <div class="modal-header">
         <h3 class="modal-title" id="itemModalTitle">Nuevo platillo</h3>
         <button type="button" class="btn btn-ghost btn-icon" id="closeItem">×</button>
@@ -100,8 +121,9 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="itemPrice">Precio (₡) *</label>
+            <label class="form-label" for="itemPrice">Precio base (₡) *</label>
             <input class="form-input" type="number" id="itemPrice" required min="0" />
+            <p class="form-hint">Precio de partida. Las opciones pueden sumar o fijar otro precio.</p>
           </div>
           <div class="form-group">
             <label class="form-label" for="itemCat">Categoría</label>
@@ -113,11 +135,96 @@
           <input class="form-input" type="file" id="itemImage" accept="image/*" />
         </div>
         <div class="form-row">
-          <label class="form-check"><input type="checkbox" id="itemAvailable" checked /> Disponible</label>
+          <label class="form-check"><input type="checkbox" id="itemAvailable" checked /> Disponible (no agotado)</label>
           <label class="form-check"><input type="checkbox" id="itemActive" checked /> Visible en menú</label>
         </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0" />
+        <p class="small muted mb-2">Opciones del cliente (selectores en el menú público). Precio: <strong>Mismo</strong>, <strong>Sumar ₡</strong> o en variantes <strong>Precio fijo</strong>.</p>
+
+        <!-- Variants -->
+        <div class="options-block card mb-2" style="padding:1rem">
+          <div class="flex justify-between items-center gap-2 mb-1">
+            <label class="form-check"><input type="checkbox" id="varEnabled" /> <strong>Variantes</strong> (ej. 8 / 12 / 16 pedazos)</label>
+            <button type="button" class="btn btn-sm btn-secondary" id="addVarOpt">+ Opción</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="varLabel">Nombre del selector</label>
+            <input class="form-input" id="varLabel" value="Tamaño" placeholder="Tamaño" />
+          </div>
+          <div class="option-editor-head xs muted mb-1"><span>Nombre</span><span>Precio</span><span>₡</span><span></span></div>
+          <div id="varRows" class="option-editor-list"></div>
+        </div>
+
+        <!-- Modifiers -->
+        <div class="options-block card mb-2" style="padding:1rem">
+          <div class="flex justify-between items-center gap-2 mb-1">
+            <label class="form-check"><input type="checkbox" id="modEnabled" /> <strong>Extras / modificadores</strong> (ej. extra pepinillo)</label>
+            <button type="button" class="btn btn-sm btn-secondary" id="addModOpt">+ Extra</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="modLabel">Nombre del selector</label>
+            <input class="form-input" id="modLabel" value="Extras" placeholder="Extras" />
+          </div>
+          <div id="modRows" class="option-editor-list"></div>
+        </div>
+
+        <!-- Halves -->
+        <div class="options-block card mb-2" style="padding:1rem">
+          <div class="flex justify-between items-center gap-2 mb-1">
+            <label class="form-check"><input type="checkbox" id="halfEnabled" /> <strong>Mitades</strong> (ej. ½ jamón / ½ hawaiana)</label>
+            <button type="button" class="btn btn-sm btn-secondary" id="addHalfOpt">+ Sabor</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="halfLabel">Nombre del selector</label>
+            <input class="form-input" id="halfLabel" value="Mitades" placeholder="Mitades" />
+          </div>
+          <p class="xs muted mb-1">Agrega al menos 2 sabores. El cliente elige Mitad 1 y Mitad 2.</p>
+          <div id="halfRows" class="option-editor-list"></div>
+        </div>
+
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="cancelItem">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Promo modal -->
+  <div class="modal-overlay hidden" id="promoModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="promoTitle">Nueva promo / combo</h3>
+        <button type="button" class="btn btn-ghost btn-icon" id="closePromo">×</button>
+      </div>
+      <form id="promoForm">
+        <input type="hidden" id="promoId" />
+        <div class="form-group">
+          <label class="form-label" for="promoType">Tipo</label>
+          <select class="form-select" id="promoType">
+            <option value="promo">Promoción</option>
+            <option value="combo">Combo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="promoName">Nombre *</label>
+          <input class="form-input" id="promoName" required placeholder="Combo casado + fresco" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="promoDesc">Descripción</label>
+          <textarea class="form-textarea" id="promoDesc" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="promoPrice">Precio (₡) *</label>
+          <input class="form-input" type="number" id="promoPrice" required min="0" />
+        </div>
+        <div class="form-row">
+          <label class="form-check"><input type="checkbox" id="promoAvailable" checked /> Disponible</label>
+          <label class="form-check"><input type="checkbox" id="promoActive" checked /> Visible</label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="cancelPromo">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar</button>
         </div>
       </form>
@@ -135,10 +242,25 @@
       addMenuItem,
       updateMenuItem,
       deleteMenuItem,
+      setMenuItemAvailable,
       renderMenuItemsList
     } from '../js/business/menu-admin.js';
+    import {
+      listPromotions,
+      addPromotion,
+      updatePromotion,
+      deletePromotion,
+      renderPromotionsList
+    } from '../js/business/promotions.js';
     import { escapeHtml } from '../js/utils.js';
     import { toast, confirmDialog } from '../js/notifications.js';
+    import {
+      emptyOptionRow,
+      emptyOptionsConfig,
+      normalizeItemOptions,
+      optionRowHtml,
+      collectOptionRows
+    } from '../js/product-options.js';
 
     const session = await requireRole('business');
     if (!session) throw new Error('auth');
@@ -151,28 +273,62 @@
     const link = menuPublicUrl(businessId);
     document.getElementById('publicLink').value = link;
     document.getElementById('openPublic').href = link;
-    document.getElementById('copyLink').addEventListener('click', async () => {
+
+    function drawQr() {
+      const canvas = document.getElementById('qrCanvas');
+      if (typeof QRCode === 'undefined') return;
+      QRCode.toCanvas(canvas, link, {
+        width: 200,
+        margin: 2,
+        color: { dark: '#111827', light: '#ffffff' }
+      }, (err) => {
+        if (err) console.warn(err);
+      });
+    }
+    drawQr();
+
+    document.getElementById('dlQr').addEventListener('click', () => {
+      const canvas = document.getElementById('qrCanvas');
+      const a = document.createElement('a');
+      a.download = `menu-qr-${businessName.replace(/\s+/g, '-').slice(0, 24)}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+      toast('QR descargado', 'success');
+    });
+
+    const copy = async () => {
       await navigator.clipboard.writeText(link);
       toast('Enlace copiado', 'success');
-    });
+    };
+    document.getElementById('copyLink').addEventListener('click', copy);
+    document.getElementById('copyLink2').addEventListener('click', copy);
 
     let categories = [];
     let items = [];
+    let promos = [];
 
     async function refresh() {
-      categories = await listCategories(businessId);
-      items = await listMenuItems(businessId);
+      const [c, i, p] = await Promise.all([
+        listCategories(businessId),
+        listMenuItems(businessId),
+        listPromotions(businessId)
+      ]);
+      categories = c;
+      items = i;
+      promos = p;
+
       document.getElementById('catList').innerHTML =
         categories
-          .map((c) => `<span class="badge badge-neutral" style="padding:0.4rem 0.7rem">${escapeHtml(c.name)}</span>`)
+          .map((x) => `<span class="badge badge-neutral" style="padding:0.4rem 0.7rem">${escapeHtml(x.name)}</span>`)
           .join('') || '<span class="muted small">Sin categorías</span>';
 
       const sel = document.getElementById('itemCat');
       sel.innerHTML =
         '<option value="">Sin categoría</option>' +
-        categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+        categories.map((x) => `<option value="${x.id}">${escapeHtml(x.name)}</option>`).join('');
 
       renderMenuItemsList(items, categories, document.getElementById('itemsList'));
+      renderPromotionsList(promos, document.getElementById('promoList'));
     }
 
     document.getElementById('addCat').addEventListener('click', async () => {
@@ -183,7 +339,35 @@
       await refresh();
     });
 
-    const modal = document.getElementById('itemModal');
+    // Item modal + options editors
+    const itemModal = document.getElementById('itemModal');
+    const varRows = document.getElementById('varRows');
+    const modRows = document.getElementById('modRows');
+    const halfRows = document.getElementById('halfRows');
+
+    function fillRows(container, type, list) {
+      container.innerHTML = (list || []).map((o) => optionRowHtml(type, o)).join('');
+    }
+
+    function bindRowRemoves(container) {
+      container.onclick = (e) => {
+        if (e.target.closest('.opt-remove')) e.target.closest('.option-editor-row')?.remove();
+      };
+    }
+    bindRowRemoves(varRows);
+    bindRowRemoves(modRows);
+    bindRowRemoves(halfRows);
+
+    document.getElementById('addVarOpt').addEventListener('click', () => {
+      varRows.insertAdjacentHTML('beforeend', optionRowHtml('variant', emptyOptionRow()));
+    });
+    document.getElementById('addModOpt').addEventListener('click', () => {
+      modRows.insertAdjacentHTML('beforeend', optionRowHtml('modifier', emptyOptionRow()));
+    });
+    document.getElementById('addHalfOpt').addEventListener('click', () => {
+      halfRows.insertAdjacentHTML('beforeend', optionRowHtml('half', emptyOptionRow()));
+    });
+
     const openItem = (item) => {
       document.getElementById('itemId').value = item?.id || '';
       document.getElementById('itemModalTitle').textContent = item ? 'Editar platillo' : 'Nuevo platillo';
@@ -194,14 +378,26 @@
       document.getElementById('itemAvailable').checked = item?.available !== false;
       document.getElementById('itemActive').checked = item?.active !== false;
       document.getElementById('itemImage').value = '';
-      modal.classList.remove('hidden');
-      requestAnimationFrame(() => modal.classList.add('modal-in'));
+
+      const opts = item ? normalizeItemOptions(item) : emptyOptionsConfig();
+      document.getElementById('varEnabled').checked = !!opts.variants.enabled;
+      document.getElementById('varLabel').value = opts.variants.label || 'Tamaño';
+      fillRows(varRows, 'variant', opts.variants.options.length ? opts.variants.options : []);
+      document.getElementById('modEnabled').checked = !!opts.modifiers.enabled;
+      document.getElementById('modLabel').value = opts.modifiers.label || 'Extras';
+      fillRows(modRows, 'modifier', opts.modifiers.options.length ? opts.modifiers.options : []);
+      document.getElementById('halfEnabled').checked = !!opts.halves.enabled;
+      document.getElementById('halfLabel').value = opts.halves.label || 'Mitades';
+      fillRows(halfRows, 'half', opts.halves.options.length ? opts.halves.options : []);
+
+      itemModal.classList.remove('hidden');
+      requestAnimationFrame(() => itemModal.classList.add('modal-in'));
     };
     const closeItem = () => {
-      modal.classList.add('modal-out');
+      itemModal.classList.add('modal-out');
       setTimeout(() => {
-        modal.classList.add('hidden');
-        modal.classList.remove('modal-in', 'modal-out');
+        itemModal.classList.add('hidden');
+        itemModal.classList.remove('modal-in', 'modal-out');
       }, 200);
     };
 
@@ -212,13 +408,41 @@
     document.getElementById('itemForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('itemId').value;
+      const options = {
+        variants: {
+          enabled: document.getElementById('varEnabled').checked,
+          label: document.getElementById('varLabel').value.trim() || 'Tamaño',
+          required: true,
+          options: collectOptionRows(varRows)
+        },
+        modifiers: {
+          enabled: document.getElementById('modEnabled').checked,
+          label: document.getElementById('modLabel').value.trim() || 'Extras',
+          multi: true,
+          options: collectOptionRows(modRows)
+        },
+        halves: {
+          enabled: document.getElementById('halfEnabled').checked,
+          label: document.getElementById('halfLabel').value.trim() || 'Mitades',
+          options: collectOptionRows(halfRows)
+        }
+      };
+      if (options.halves.enabled && options.halves.options.length < 2) {
+        toast('Mitades: agrega al menos 2 sabores', 'warning');
+        return;
+      }
+      if (options.variants.enabled && !options.variants.options.length) {
+        toast('Variantes: agrega al menos 1 opción o desactiva el check', 'warning');
+        return;
+      }
       const payload = {
         name: document.getElementById('itemName').value,
         description: document.getElementById('itemDesc').value,
         price: document.getElementById('itemPrice').value,
         categoryId: document.getElementById('itemCat').value,
         available: document.getElementById('itemAvailable').checked,
-        active: document.getElementById('itemActive').checked
+        active: document.getElementById('itemActive').checked,
+        options
       };
       const file = document.getElementById('itemImage').files[0];
       try {
@@ -236,8 +460,12 @@
       const btn = e.target.closest('[data-act]');
       if (!btn) return;
       const id = btn.dataset.id;
-      if (btn.dataset.act === 'edit') {
-        openItem(items.find((i) => i.id === id));
+      const item = items.find((x) => x.id === id);
+      if (btn.dataset.act === 'edit') openItem(item);
+      else if (btn.dataset.act === 'soldout') {
+        await setMenuItemAvailable(businessId, id, item?.available === false);
+        toast(item?.available === false ? 'Marcado disponible' : 'Marcado agotado', 'success');
+        await refresh();
       } else if (btn.dataset.act === 'del') {
         const ok = await confirmDialog({
           title: 'Eliminar platillo',
@@ -247,6 +475,78 @@
         });
         if (!ok) return;
         await deleteMenuItem(businessId, id);
+        toast('Eliminado', 'info');
+        await refresh();
+      }
+    });
+
+    // Promo modal
+    const promoModal = document.getElementById('promoModal');
+    const openPromo = (p) => {
+      document.getElementById('promoId').value = p?.id || '';
+      document.getElementById('promoTitle').textContent = p ? 'Editar promo/combo' : 'Nueva promo / combo';
+      document.getElementById('promoType').value = p?.type || 'promo';
+      document.getElementById('promoName').value = p?.name || '';
+      document.getElementById('promoDesc').value = p?.description || '';
+      document.getElementById('promoPrice').value = p?.price ?? '';
+      document.getElementById('promoAvailable').checked = p?.available !== false;
+      document.getElementById('promoActive').checked = p?.active !== false;
+      promoModal.classList.remove('hidden');
+      requestAnimationFrame(() => promoModal.classList.add('modal-in'));
+    };
+    const closePromo = () => {
+      promoModal.classList.add('modal-out');
+      setTimeout(() => {
+        promoModal.classList.add('hidden');
+        promoModal.classList.remove('modal-in', 'modal-out');
+      }, 200);
+    };
+    document.getElementById('openPromo').addEventListener('click', () => openPromo(null));
+    document.getElementById('openPromo2').addEventListener('click', () => openPromo(null));
+    document.getElementById('closePromo').addEventListener('click', closePromo);
+    document.getElementById('cancelPromo').addEventListener('click', closePromo);
+
+    document.getElementById('promoForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('promoId').value;
+      const data = {
+        type: document.getElementById('promoType').value,
+        name: document.getElementById('promoName').value,
+        description: document.getElementById('promoDesc').value,
+        price: document.getElementById('promoPrice').value,
+        available: document.getElementById('promoAvailable').checked,
+        active: document.getElementById('promoActive').checked
+      };
+      try {
+        if (id) await updatePromotion(businessId, id, data);
+        else await addPromotion(businessId, data);
+        toast('Guardado', 'success');
+        closePromo();
+        await refresh();
+      } catch (err) {
+        toast(err.message || 'Error', 'error');
+      }
+    });
+
+    document.getElementById('promoList').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const p = promos.find((x) => x.id === id);
+      if (btn.dataset.act === 'edit-promo') openPromo(p);
+      else if (btn.dataset.act === 'toggle-promo') {
+        await updatePromotion(businessId, id, { ...p, available: p.available === false });
+        toast(p.available === false ? 'Disponible' : 'Agotado', 'success');
+        await refresh();
+      } else if (btn.dataset.act === 'del-promo') {
+        const ok = await confirmDialog({
+          title: 'Eliminar',
+          message: '¿Eliminar esta promo/combo?',
+          confirmText: 'Eliminar',
+          danger: true
+        });
+        if (!ok) return;
+        await deletePromotion(businessId, id);
         toast('Eliminado', 'info');
         await refresh();
       }
