@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Negocios — Admin Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-text">Bocas</div>
+          <div class="brand-sub">Admin</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" data-nav="dash" href="/admin/"><span>📊</span> Dashboard</a>
+        <a class="nav-item active" data-nav="biz" href="/admin/businesses.html"><span>🏪</span> Negocios</a>
+        <a class="nav-item" data-nav="stats" href="/admin/stats.html"><span>📈</span> Estadísticas</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrador</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm w-full mt-1" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+          <h1 class="page-title">Negocios y licencias</h1>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="openCreate">+ Nuevo negocio</button>
+      </header>
+
+      <div class="page-content">
+        <div class="toolbar">
+          <input type="search" class="form-input search-input" id="search" placeholder="Buscar negocio, correo…" />
+          <div class="tabs" id="filterTabs">
+            <button type="button" class="tab active" data-filter="all">Todos</button>
+            <button type="button" class="tab" data-filter="active">Activos</button>
+            <button type="button" class="tab" data-filter="paused">Pausados</button>
+            <button type="button" class="tab" data-filter="deleted">Eliminados</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Negocio</th>
+                <th>Correo</th>
+                <th>Estado licencia</th>
+                <th>Vence</th>
+                <th>Restante</th>
+                <th>Ventas</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="7"><div class="loading-block"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create modal -->
+  <div class="modal-overlay hidden" id="createModal">
+    <div class="modal modal-lg" role="dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Crear negocio / licencia</h3>
+        <button type="button" class="btn btn-ghost btn-icon" id="closeCreate">×</button>
+      </div>
+      <form id="createForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="businessName">Nombre del negocio *</label>
+            <input class="form-input" id="businessName" required placeholder="Soda El Buen Sabor" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ownerName">Nombre del dueño *</label>
+            <input class="form-input" id="ownerName" required placeholder="María Pérez" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="email">Correo de acceso *</label>
+            <input class="form-input" type="email" id="email" required placeholder="negocio@correo.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Contraseña temporal *</label>
+            <input class="form-input" type="text" id="password" required minlength="8" placeholder="Mínimo 8 caracteres" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="phone">Teléfono / WhatsApp</label>
+            <input class="form-input" id="phone" placeholder="88887777" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="durationDays">Duración licencia (días) *</label>
+            <select class="form-select" id="durationDays" required>
+              <option value="7">7 días (prueba)</option>
+              <option value="30" selected>30 días</option>
+              <option value="90">90 días</option>
+              <option value="180">180 días</option>
+              <option value="365">365 días (1 año)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="plan">Plan</label>
+          <select class="form-select" id="plan">
+            <option value="standard">Standard</option>
+            <option value="pro">Pro</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="cancelCreate">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="submitCreate">Crear licencia</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireRole } from '/js/auth.js';
+    import { initShell } from '/js/shell.js';
+    import {
+      createBusiness,
+      listBusinesses,
+      renderBusinessRows,
+      bindBusinessActions
+    } from '/js/admin/businesses.js';
+    import { toast } from '/js/notifications.js';
+
+    const session = await requireRole('admin');
+    if (!session) throw new Error('auth');
+    initShell({ userName: session.profile.name, roleLabel: 'Administrador' });
+
+    let all = [];
+    let filter = 'all';
+    const tbody = document.getElementById('tbody');
+    const search = document.getElementById('search');
+    const modal = document.getElementById('createModal');
+
+    async function refresh() {
+      all = await listBusinesses();
+      applyFilter();
+    }
+
+    function applyFilter() {
+      const q = (search.value || '').toLowerCase().trim();
+      let list = all;
+      if (filter !== 'all') list = list.filter((b) => b.status === filter);
+      if (q) {
+        list = list.filter(
+          (b) =>
+            (b.name || '').toLowerCase().includes(q) ||
+            (b.email || '').toLowerCase().includes(q) ||
+            (b.ownerName || '').toLowerCase().includes(q)
+        );
+      }
+      renderBusinessRows(list, tbody);
+    }
+
+    document.getElementById('filterTabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('[data-filter]');
+      if (!tab) return;
+      filter = tab.dataset.filter;
+      document.querySelectorAll('#filterTabs .tab').forEach((t) => t.classList.toggle('active', t === tab));
+      applyFilter();
+    });
+    search.addEventListener('input', applyFilter);
+
+    const openM = () => {
+      modal.classList.remove('hidden');
+      requestAnimationFrame(() => modal.classList.add('modal-in'));
+    };
+    const closeM = () => {
+      modal.classList.add('modal-out');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('modal-in', 'modal-out');
+      }, 200);
+    };
+
+    document.getElementById('openCreate').addEventListener('click', openM);
+    document.getElementById('closeCreate').addEventListener('click', closeM);
+    document.getElementById('cancelCreate').addEventListener('click', closeM);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeM(); });
+
+    document.getElementById('createForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submitCreate');
+      btn.disabled = true;
+      btn.textContent = 'Creando…';
+      try {
+        const result = await createBusiness({
+          businessName: document.getElementById('businessName').value,
+          ownerName: document.getElementById('ownerName').value,
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+          phone: document.getElementById('phone').value,
+          durationDays: document.getElementById('durationDays').value,
+          plan: document.getElementById('plan').value
+        });
+        toast('Negocio creado correctamente', 'success');
+        document.getElementById('createForm').reset();
+        closeM();
+        await refresh();
+        alert(
+          `Negocio creado.\n\nCorreo: ${document.getElementById('email').value || result.email}\n` +
+          `ID: ${result.businessId}\nMenú: /menu/?b=${result.businessId}\n\n` +
+          `Entrega estas credenciales al cliente (contraseña la que definiste).`
+        );
+      } catch (err) {
+        console.error(err);
+        let msg = err.message || 'Error al crear';
+        if (err.code === 'auth/email-already-in-use') msg = 'Ese correo ya está registrado.';
+        if (err.code === 'auth/weak-password') msg = 'Contraseña muy débil (mín. 6 caracteres).';
+        toast(msg, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Crear licencia';
+      }
+    });
+
+    bindBusinessActions(tbody, refresh);
+
+    try {
+      await refresh();
+    } catch (err) {
+      toast(err.message || 'Error cargando negocios', 'error');
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><p>${err.message}</p></div></td></tr>`;
+    }
+  </script>
+</body>
+</html>

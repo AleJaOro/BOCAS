@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Estadísticas — Admin Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-text">Bocas</div>
+          <div class="brand-sub">Admin</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="/admin/"><span>📊</span> Dashboard</a>
+        <a class="nav-item" href="/admin/businesses.html"><span>🏪</span> Negocios</a>
+        <a class="nav-item active" href="/admin/stats.html"><span>📈</span> Estadísticas</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrador</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm w-full mt-1" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+          <h1 class="page-title">Estadísticas globales</h1>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="grid grid-3 mb-3">
+          <div class="stat-card">
+            <div class="stat-label">Ventas de hoy (plataforma)</div>
+            <div class="stat-value" id="todaySales">₡0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Pedidos de hoy</div>
+            <div class="stat-value" id="todayOrders">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Ticket promedio (histórico)</div>
+            <div class="stat-value" id="avgTicket">₡0</div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <div class="card-title">Ranking de negocios por ventas</div>
+          </div>
+          <div style="height: 320px;"><canvas id="rankChart"></canvas></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">Detalle</div></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Negocio</th>
+                  <th>Estado</th>
+                  <th>Pedidos</th>
+                  <th>Ventas</th>
+                  <th>Días licencia</th>
+                </tr>
+              </thead>
+              <tbody id="rankTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireRole } from '/js/auth.js';
+    import { initShell } from '/js/shell.js';
+    import { loadAdminStats, renderSalesChart } from '/js/admin/dashboard.js';
+    import { formatMoney, escapeHtml } from '/js/utils.js';
+    import { toast } from '/js/notifications.js';
+
+    const session = await requireRole('admin');
+    if (!session) throw new Error('auth');
+    initShell({ userName: session.profile.name, roleLabel: 'Administrador' });
+
+    try {
+      const stats = await loadAdminStats();
+      document.getElementById('todaySales').textContent = formatMoney(stats.todaySales);
+      document.getElementById('todayOrders').textContent = stats.todayOrders;
+      const avg = stats.totalOrders ? stats.totalSales / stats.totalOrders : 0;
+      document.getElementById('avgTicket').textContent = formatMoney(avg);
+      renderSalesChart('rankChart', stats.byBusiness);
+
+      document.getElementById('rankTable').innerHTML = stats.byBusiness
+        .map(
+          (b, i) => `<tr>
+            <td>${i + 1}</td>
+            <td><strong>${escapeHtml(b.name)}</strong></td>
+            <td><span class="badge ${b.status === 'active' ? 'badge-success' : 'badge-warning'}">${escapeHtml(b.status)}</span></td>
+            <td>${b.orders}</td>
+            <td>${formatMoney(b.sales)}</td>
+            <td>${b.daysLeft}</td>
+          </tr>`
+        )
+        .join('') || '<tr><td colspan="6"><div class="empty-state">Sin datos</div></td></tr>';
+    } catch (err) {
+      toast(err.message || 'Error', 'error');
+    }
+  </script>
+</body>
+</html>

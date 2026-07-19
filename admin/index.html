@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Admin — Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-text">Bocas</div>
+          <div class="brand-sub">Admin</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-nav="dash" href="/admin/"><span>📊</span> Dashboard</a>
+        <a class="nav-item" data-nav="biz" href="/admin/businesses.html"><span>🏪</span> Negocios</a>
+        <a class="nav-item" data-nav="stats" href="/admin/stats.html"><span>📈</span> Estadísticas</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrador</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm w-full mt-1" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+          <h1 class="page-title">Dashboard general</h1>
+        </div>
+        <a href="/admin/businesses.html" class="btn btn-primary btn-sm">+ Nuevo negocio</a>
+      </header>
+
+      <div class="page-content">
+        <div id="loading" class="loading-block"><div class="spinner"></div>Cargando…</div>
+        <div id="content" class="hidden">
+          <div class="grid grid-4 mb-3">
+            <div class="stat-card" style="animation-delay:0.05s">
+              <div class="stat-icon">🏪</div>
+              <div class="stat-label">Negocios</div>
+              <div class="stat-value" id="statBusinesses">0</div>
+              <div class="stat-hint"><span id="statActive">0</span> activos · <span id="statPaused">0</span> pausados</div>
+            </div>
+            <div class="stat-card" style="animation-delay:0.1s">
+              <div class="stat-icon">💰</div>
+              <div class="stat-label">Ventas totales</div>
+              <div class="stat-value" id="statSales">₡0</div>
+              <div class="stat-hint">Todos los negocios</div>
+            </div>
+            <div class="stat-card" style="animation-delay:0.15s">
+              <div class="stat-icon">🧾</div>
+              <div class="stat-label">Pedidos totales</div>
+              <div class="stat-value" id="statOrders">0</div>
+              <div class="stat-hint">Hoy: <span id="statTodayOrders">0</span></div>
+            </div>
+            <div class="stat-card" style="animation-delay:0.2s">
+              <div class="stat-icon">⏰</div>
+              <div class="stat-label">Licencias por vencer</div>
+              <div class="stat-value" id="statExpiring">0</div>
+              <div class="stat-hint">En 7 días o menos</div>
+            </div>
+          </div>
+
+          <div class="grid grid-2 mb-3">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Ventas por negocio</div>
+              </div>
+              <div style="height: 280px; position: relative;">
+                <canvas id="salesChart"></canvas>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Estado de cuentas</div>
+              </div>
+              <div style="height: 280px; position: relative;">
+                <canvas id="statusChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Resumen de negocios</div>
+              <a href="/admin/businesses.html" class="btn btn-ghost btn-sm">Ver todos</a>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Negocio</th>
+                    <th>Estado</th>
+                    <th>Licencia</th>
+                    <th>Ventas</th>
+                    <th>Pedidos</th>
+                  </tr>
+                </thead>
+                <tbody id="bizTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireRole } from '/js/auth.js';
+    import { initShell } from '/js/shell.js';
+    import { loadAdminStats, renderStatCards, renderSalesChart, renderStatusChart } from '/js/admin/dashboard.js';
+    import { licenseStatus, formatMoney, escapeHtml } from '/js/utils.js';
+    import { toast } from '/js/notifications.js';
+
+    const session = await requireRole('admin');
+    if (!session) throw new Error('auth');
+
+    initShell({ userName: session.profile.name, roleLabel: 'Administrador' });
+
+    try {
+      const stats = await loadAdminStats();
+      renderStatCards(stats);
+      renderSalesChart('salesChart', stats.byBusiness);
+      renderStatusChart('statusChart', stats);
+
+      const tbody = document.getElementById('bizTable');
+      const rows = stats.byBusiness.slice(0, 10);
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Sin negocios todavía</p></div></td></tr>';
+      } else {
+        tbody.innerHTML = rows
+          .map((b) => {
+            const ls = licenseStatus(null, b.status);
+            // recompute label from daysLeft
+            let label = ls.label;
+            let cls = ls.class;
+            if (b.status === 'active') {
+              if (b.daysLeft <= 0) { label = 'Vencida'; cls = 'badge-danger'; }
+              else if (b.daysLeft <= 7) { label = `${b.daysLeft}d`; cls = 'badge-warning'; }
+              else { label = `${b.daysLeft}d`; cls = 'badge-success'; }
+            }
+            return `<tr>
+              <td><strong>${escapeHtml(b.name)}</strong></td>
+              <td><span class="badge ${b.status === 'active' ? 'badge-success' : b.status === 'paused' ? 'badge-warning' : 'badge-danger'}">${escapeHtml(b.status)}</span></td>
+              <td><span class="badge ${cls}">${escapeHtml(label)}</span></td>
+              <td>${formatMoney(b.sales)}</td>
+              <td>${b.orders}</td>
+            </tr>`;
+          })
+          .join('');
+      }
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+    } catch (err) {
+      toast(err.message || 'Error cargando dashboard', 'error');
+      document.getElementById('loading').innerHTML = `<p class="muted">${err.message}</p>`;
+    }
+  </script>
+</body>
+</html>
