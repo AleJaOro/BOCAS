@@ -45,4 +45,44 @@ export function initShell({ userName = '', roleLabel = '' } = {}) {
     e.preventDefault();
     await logout();
   });
+
+  initPageActions();
+}
+
+/** Acciones del topbar: en móvil es desplegable; en desktop siempre abierto */
+export function initPageActions() {
+  const el = document.getElementById('pageActions');
+  if (!el) return;
+
+  const mq = window.matchMedia('(min-width: 900px)');
+  const sync = () => {
+    if (mq.matches) {
+      el.open = true;
+      el.classList.add('is-desktop');
+    } else {
+      el.classList.remove('is-desktop');
+      // En móvil empieza cerrado para no ocupar espacio
+      el.open = false;
+    }
+  };
+  sync();
+  mq.addEventListener?.('change', sync);
+
+  el.querySelector('summary')?.addEventListener('click', (e) => {
+    if (mq.matches) {
+      e.preventDefault(); // no cerrar en desktop
+    }
+  });
+
+  el.querySelector('.page-actions-panel')?.addEventListener('click', (e) => {
+    if (!mq.matches && e.target.closest('button, a')) {
+      el.open = false;
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!mq.matches && el.open && !el.contains(e.target)) {
+      el.open = false;
+    }
+  });
 }
