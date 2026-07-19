@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return signedIn() && userDoc().role == 'admin';
+    }
+
+    function isBusinessOwner(businessId) {
+      return signedIn()
+        && userDoc().role == 'business'
+        && userDoc().businessId == businessId
+        && userDoc().status == 'active';
+    }
+
+    // System meta (setup flag)
+    match /meta/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() || !exists(/databases/$(database)/documents/meta/system);
+    }
+
+    function setupDone() {
+      return exists(/databases/$(database)/documents/meta/system)
+        && get(/databases/$(database)/documents/meta/system).data.setupCompleted == true;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      // Admin can create business users; first admin only before setupCompleted
+      allow create: if signedIn() && (
+        isAdmin() ||
+        (request.auth.uid == userId
+          && request.resource.data.role == 'admin'
+          && !setupDone())
+      );
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.businessId == resource.data.businessId);
+      allow delete: if isAdmin();
+    }
+
+    // Businesses
+    match /businesses/{businessId} {
+      // Public menu needs to read business name/settings (limited client-side)
+      allow read: if true;
+      allow create: if isAdmin();
+      // Owner/admin full update; public menu may only bump stats after placing an order
+      allow update: if isAdmin()
+        || isBusinessOwner(businessId)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats', 'updatedAt']);
+      allow delete: if isAdmin();
+
+      // Orders — public can create (digital menu); owner/admin read/write
+      match /orders/{orderId} {
+        allow read: if isAdmin() || isBusinessOwner(businessId);
+        allow create: if true; // public menu + business panel
+        allow update, delete: if isAdmin() || isBusinessOwner(businessId);
+      }
+
+      // Clients
+      match /clients/{clientId} {
+        allow read: if isAdmin() || isBusinessOwner(businessId);
+        // Public menu may upsert client by phone
+        allow create: if true;
+        allow update: if isAdmin() || isBusinessOwner(businessId) || true;
+        allow delete: if isAdmin() || isBusinessOwner(businessId);
+      }
+
+      // Menu categories & items — public read for digital menu
+      match /categories/{catId} {
+        allow read: if true;
+        allow write: if isAdmin() || isBusinessOwner(businessId);
+      }
+      match /menuItems/{itemId} {
+        allow read: if true;
+        allow write: if isAdmin() || isBusinessOwner(businessId);
+      }
+
+      // Express locations — public read
+      match /locations/{locId} {
+        allow read: if true;
+        allow write: if isAdmin() || isBusinessOwner(businessId);
+      }
+    }
+
+    // Collection group queries for admin stats
+    match /{path=**}/orders/{orderId} {
+      allow read: if isAdmin();
+    }
+  }
+}

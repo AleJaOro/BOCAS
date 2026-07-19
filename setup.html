@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Setup Admin — Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="brand-mark">B</div>
+        <h1>Setup inicial</h1>
+        <p class="muted small">Crea el administrador general (solo una vez)</p>
+      </div>
+
+      <div id="already" class="hidden">
+        <p class="text-center muted mb-2">Ya existe un administrador en el sistema.</p>
+        <a href="/login.html" class="btn btn-primary btn-block">Ir al login</a>
+      </div>
+
+      <div id="setupBox">
+        <div class="card mb-2" style="background: var(--info-soft); border-color: #bfdbfe; padding: 0.85rem;">
+          <p class="small" style="color: #1e40af; margin: 0;">
+            <strong>Importante:</strong> En Firebase Console activa <em>Authentication → Email/Password</em>
+            y publica las reglas de Firestore incluidas en el proyecto (<code>firestore.rules</code>).
+          </p>
+        </div>
+
+        <div id="authError" class="auth-error" role="alert"></div>
+
+        <form id="setupForm">
+          <div class="form-group">
+            <label class="form-label" for="name">Nombre</label>
+            <input class="form-input" id="name" value="Administrador Bocas" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="email">Correo admin</label>
+            <input class="form-input" type="email" id="email" value="admin@bocas.app" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Contraseña</label>
+            <input class="form-input" type="password" id="password" value="BocasAdmin2026!" required minlength="8" />
+            <p class="form-hint">Guárdala en un lugar seguro. Podrás cambiarla después en Firebase Auth.</p>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="setupBtn">Crear administrador</button>
+        </form>
+      </div>
+
+      <p class="text-center muted small mt-2"><a href="/">← Inicio</a></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { setupAdmin, adminExists } from '/js/auth.js';
+    import { lockViewportZoom } from '/js/utils.js';
+    import { toast } from '/js/notifications.js';
+
+    lockViewportZoom();
+
+    const already = document.getElementById('already');
+    const setupBox = document.getElementById('setupBox');
+    const errEl = document.getElementById('authError');
+    const btn = document.getElementById('setupBtn');
+
+    try {
+      if (await adminExists()) {
+        already.classList.remove('hidden');
+        setupBox.classList.add('hidden');
+      }
+    } catch {
+      /* rules may block until first write — allow setup form */
+    }
+
+    document.getElementById('setupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.classList.remove('show');
+      btn.disabled = true;
+      btn.textContent = 'Creando…';
+      try {
+        await setupAdmin({
+          name: document.getElementById('name').value.trim(),
+          email: document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value
+        });
+        toast('Administrador creado', 'success');
+        setTimeout(() => { location.href = '/admin/'; }, 600);
+      } catch (err) {
+        errEl.textContent = err.message || 'Error al crear admin';
+        errEl.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Crear administrador';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+========================================
+  BOCAS SAAS — ACCESO ADMIN GENERAL
+========================================
+
+1) En Firebase Console (proyecto bocas-7848a):
+   - Authentication → Email/Password → Activar
+   - Firestore → crear base si no existe
+   - Pegar y publicar firestore.rules
+   - Storage → pegar y publicar storage.rules
+
+2) Arrancar local:
+   python server.py
+   → http://localhost:5500/setup.html
+
+3) Crear admin (solo una vez) con estos datos:
+
+   Correo:      admin@bocas.app
+   Contraseña:  BocasAdmin2026!
+   Nombre:      Administrador Bocas
+
+4) Luego entra en:
+   http://localhost:5500/login.html
+
+5) Desde Admin → Negocios → creas cada soda/negocio
+   (les das correo, contraseña temporal y días de licencia).
+
+IMPORTANTE: Cambia la contraseña del admin después del primer acceso.
+========================================
