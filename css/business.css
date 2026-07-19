@@ -1,0 +1,280 @@
+/* Business dashboard — orders, menu, etc. */
+
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.order-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: fadeUp 0.35s ease both;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  position: relative;
+}
+
+.order-card.is-new {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.order-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.order-id {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.order-client {
+  font-weight: 650;
+  font-size: 1rem;
+}
+
+.order-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.order-items {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.order-items li {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+}
+
+.order-items li + li {
+  border-top: 1px dashed var(--border);
+  margin-top: 0.2rem;
+  padding-top: 0.35rem;
+}
+
+.order-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: auto;
+}
+
+.order-status-select {
+  width: 100%;
+  font-size: 0.85rem;
+  font-weight: 550;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.order-status-select.status-nuevo {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.order-status-select.status-preparacion {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.order-status-select.status-listo {
+  border-color: #6ee7b7;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+/* Kanban columns (optional view) */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.kanban-col {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  min-height: 200px;
+  border: 1px solid var(--border);
+}
+
+.kanban-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding: 0 0.25rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.kanban-count {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.kanban-col .order-card {
+  margin-bottom: 0.65rem;
+}
+
+/* Menu management */
+.menu-item-card {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.menu-item-img {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.menu-item-img.placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+}
+
+.menu-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-item-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.menu-item-price {
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* Client autocomplete */
+.autocomplete-wrap {
+  position: relative;
+}
+
+.autocomplete-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  z-index: 20;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+}
+
+.autocomplete-list.show {
+  display: block;
+}
+
+.autocomplete-item {
+  padding: 0.65rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover {
+  background: var(--bg);
+}
+
+/* Live bar */
+.live-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 0.35rem 0.7rem;
+  background: var(--success-soft);
+  border-radius: 999px;
+  color: var(--success);
+}
+
+/* Order builder */
+.builder-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: 0.75rem;
+}
+
+.builder-row {
+  display: grid;
+  grid-template-columns: 1fr 70px 90px 36px;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .kanban {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
