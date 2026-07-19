@@ -26,8 +26,10 @@
       <div id="setupBox">
         <div class="card mb-2" style="background: var(--info-soft); border-color: #bfdbfe; padding: 0.85rem;">
           <p class="small" style="color: #1e40af; margin: 0;">
-            <strong>Importante:</strong> En Firebase Console activa <em>Authentication → Email/Password</em>
-            y publica las reglas de Firestore incluidas en el proyecto (<code>firestore.rules</code>).
+            <strong>Antes de crear (Firebase Console):</strong><br />
+            1) Authentication → Sign-in method → <em>Email/Password</em> → Enable<br />
+            2) Authentication → Settings → Authorized domains → agrega <em>alejaoro.github.io</em><br />
+            3) Firestore → Rules → publica reglas (si falla, usa las temporales abiertas y luego las seguras)
           </p>
         </div>
 
