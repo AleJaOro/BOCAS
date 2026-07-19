@@ -309,3 +309,14 @@
   border-radius: var(--radius-sm);
   background: var(--bg);
 }
+
+.dish-opt-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0.15rem;
+}
+
+.dish-opt-badges .badge {
+  font-size: 0.65rem;
+}
