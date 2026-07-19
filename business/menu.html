@@ -200,6 +200,7 @@
       </div>
       <form id="promoForm">
         <input type="hidden" id="promoId" />
+        <input type="hidden" id="promoImageUrl" />
         <div class="form-group">
           <label class="form-label" for="promoType">Tipo</label>
           <select class="form-select" id="promoType">
@@ -219,9 +220,17 @@
           <label class="form-label" for="promoPrice">Precio (₡) *</label>
           <input class="form-input" type="number" id="promoPrice" required min="0" />
         </div>
+        <div class="form-group">
+          <label class="form-label" for="promoImage">Imagen del platillo / combo</label>
+          <input class="form-input" type="file" id="promoImage" accept="image/*" />
+          <p class="form-hint">JPG o PNG. Se muestra en el menú del cliente.</p>
+          <div id="promoImagePreview" class="mt-1 hidden">
+            <img id="promoImagePreviewImg" alt="Vista previa" style="max-width:120px;border-radius:8px;border:1px solid var(--border)" />
+          </div>
+        </div>
         <div class="form-row">
           <label class="form-check"><input type="checkbox" id="promoAvailable" checked /> Disponible</label>
-          <label class="form-check"><input type="checkbox" id="promoActive" checked /> Visible</label>
+          <label class="form-check"><input type="checkbox" id="promoActive" checked /> Visible en menú</label>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="cancelPromo">Cancelar</button>
@@ -482,6 +491,27 @@
 
     // Promo modal
     const promoModal = document.getElementById('promoModal');
+    const promoPreview = document.getElementById('promoImagePreview');
+    const promoPreviewImg = document.getElementById('promoImagePreviewImg');
+
+    function setPromoPreview(url) {
+      if (url) {
+        promoPreviewImg.src = url;
+        promoPreview.classList.remove('hidden');
+      } else {
+        promoPreviewImg.src = '';
+        promoPreview.classList.add('hidden');
+      }
+    }
+
+    document.getElementById('promoImage').addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => setPromoPreview(reader.result);
+      reader.readAsDataURL(file);
+    });
+
     const openPromo = (p) => {
       document.getElementById('promoId').value = p?.id || '';
       document.getElementById('promoTitle').textContent = p ? 'Editar promo/combo' : 'Nueva promo / combo';
@@ -491,6 +521,9 @@
       document.getElementById('promoPrice').value = p?.price ?? '';
       document.getElementById('promoAvailable').checked = p?.available !== false;
       document.getElementById('promoActive').checked = p?.active !== false;
+      document.getElementById('promoImage').value = '';
+      document.getElementById('promoImageUrl').value = p?.imageUrl || '';
+      setPromoPreview(p?.imageUrl || '');
       promoModal.classList.remove('hidden');
       requestAnimationFrame(() => promoModal.classList.add('modal-in'));
     };
@@ -508,23 +541,30 @@
 
     document.getElementById('promoForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const btn = e.submitter || document.querySelector('#promoForm button[type="submit"]');
+      if (btn) btn.disabled = true;
       const id = document.getElementById('promoId').value;
+      const file = document.getElementById('promoImage').files[0];
       const data = {
         type: document.getElementById('promoType').value,
         name: document.getElementById('promoName').value,
         description: document.getElementById('promoDesc').value,
         price: document.getElementById('promoPrice').value,
         available: document.getElementById('promoAvailable').checked,
-        active: document.getElementById('promoActive').checked
+        active: document.getElementById('promoActive').checked,
+        imageUrl: document.getElementById('promoImageUrl').value || ''
       };
       try {
-        if (id) await updatePromotion(businessId, id, data);
-        else await addPromotion(businessId, data);
+        if (id) await updatePromotion(businessId, id, data, file);
+        else await addPromotion(businessId, data, file);
         toast('Guardado', 'success');
         closePromo();
         await refresh();
       } catch (err) {
-        toast(err.message || 'Error', 'error');
+        console.error(err);
+        toast(err.message || 'Error al guardar (revisa Storage y reglas)', 'error');
+      } finally {
+        if (btn) btn.disabled = false;
       }
     });
 
