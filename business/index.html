@@ -48,20 +48,20 @@
           <h1 class="page-title">Pedidos</h1>
           <span class="live-bar"><span class="live-dot"></span> En vivo</span>
         </div>
-        <div class="topbar-actions" id="topbarActions">
-          <button type="button" class="btn btn-secondary btn-sm topbar-more" id="topbarMore" aria-expanded="false">Acciones ▾</button>
-          <div class="topbar-actions-menu" id="topbarMenu">
+        <details class="page-actions" id="pageActions" open>
+          <summary>Acciones</summary>
+          <div class="page-actions-panel">
             <button type="button" class="btn btn-secondary btn-sm" id="enableAlerts" title="Sonido + notificaciones">🔔 Activar alertas</button>
-            <div class="tabs" id="viewTabs">
-              <button type="button" class="tab active" data-view="grid">Tarjetas</button>
-              <button type="button" class="tab" data-view="kanban">Columnas</button>
-            </div>
             <button type="button" class="btn btn-primary btn-sm" id="openManual">+ Pedido manual</button>
           </div>
-        </div>
+        </details>
       </header>
 
       <div class="page-content">
+        <div class="view-switch mb-2" id="viewTabs">
+          <button type="button" class="tab active" data-view="grid">Tarjetas</button>
+          <button type="button" class="tab" data-view="kanban">Columnas</button>
+        </div>
         <div id="announcementsBanner" class="mb-2 hidden"></div>
         <div id="ordersBoard" class="orders-grid">
           <div class="loading-block" style="grid-column:1/-1"><div class="spinner"></div>Conectando pedidos en tiempo real…</div>
@@ -209,27 +209,6 @@
     if (alertsEnabled()) {
       document.getElementById('enableAlerts').textContent = '🔔 Alertas ON';
     }
-
-    // Mobile topbar menu
-    const moreBtn = document.getElementById('topbarMore');
-    const actionsWrap = document.getElementById('topbarActions');
-    moreBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const open = actionsWrap.classList.toggle('is-open');
-      moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    document.addEventListener('click', (e) => {
-      if (!actionsWrap?.contains(e.target)) {
-        actionsWrap?.classList.remove('is-open');
-        moreBtn?.setAttribute('aria-expanded', 'false');
-      }
-    });
-    document.getElementById('topbarMenu')?.addEventListener('click', () => {
-      if (window.matchMedia('(max-width: 768px)').matches) {
-        actionsWrap?.classList.remove('is-open');
-        moreBtn?.setAttribute('aria-expanded', 'false');
-      }
-    });
 
     // Platform announcements (unread on main dashboard)
     try {

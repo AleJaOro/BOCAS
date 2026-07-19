@@ -47,14 +47,14 @@
           <button type="button" class="menu-toggle" id="menuToggle">☰</button>
           <h1 class="page-title">Menú digital</h1>
         </div>
-        <div class="topbar-actions" id="topbarActions">
-          <button type="button" class="btn btn-secondary btn-sm topbar-more" id="topbarMore" aria-expanded="false">Acciones ▾</button>
-          <div class="topbar-actions-menu" id="topbarMenu">
+        <details class="page-actions" id="pageActions" open>
+          <summary>Acciones</summary>
+          <div class="page-actions-panel">
             <button type="button" class="btn btn-secondary btn-sm" id="copyLink">Copiar enlace</button>
             <button type="button" class="btn btn-secondary btn-sm" id="openPromo">+ Promo/Combo</button>
             <button type="button" class="btn btn-primary btn-sm" id="openItem">+ Platillo</button>
           </div>
-        </div>
+        </details>
       </header>
 
       <div class="page-content">
@@ -324,28 +324,6 @@
       }
     }
     drawQr();
-
-    // Mobile: topbar actions menu
-    const moreBtn = document.getElementById('topbarMore');
-    const actionsWrap = document.getElementById('topbarActions');
-    moreBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const open = actionsWrap.classList.toggle('is-open');
-      moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    document.addEventListener('click', (e) => {
-      if (!actionsWrap?.contains(e.target)) {
-        actionsWrap?.classList.remove('is-open');
-        moreBtn?.setAttribute('aria-expanded', 'false');
-      }
-    });
-    document.getElementById('topbarMenu')?.addEventListener('click', () => {
-      // close after choosing an action on mobile
-      if (window.matchMedia('(max-width: 768px)').matches) {
-        actionsWrap?.classList.remove('is-open');
-        moreBtn?.setAttribute('aria-expanded', 'false');
-      }
-    });
 
     document.getElementById('dlQr').addEventListener('click', async () => {
       const canvas = document.getElementById('qrCanvas');
