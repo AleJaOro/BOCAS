@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Ajustes — Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/business.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-text" id="bizBrand">Bocas</div>
+          <div class="brand-sub">Negocio</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="/business/"><span>🧾</span> Pedidos</a>
+        <a class="nav-item" href="/business/menu.html"><span>📋</span> Menú</a>
+        <a class="nav-item" href="/business/locations.html"><span>📍</span> Express</a>
+        <a class="nav-item" href="/business/clients.html"><span>👥</span> Clientes</a>
+        <a class="nav-item" href="/business/stats.html"><span>📊</span> Estadísticas</a>
+        <a class="nav-item active" href="/business/settings.html"><span>⚙️</span> Ajustes</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="userAvatar">N</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Negocio</div>
+            <div class="user-role" id="userRole">Panel</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm w-full mt-1" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-toggle" id="menuToggle">☰</button>
+          <h1 class="page-title">Ajustes del negocio</h1>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="grid grid-2" style="align-items:start">
+          <form class="card" id="settingsForm">
+            <div class="card-header"><div class="card-title">Datos generales</div></div>
+            <div class="form-group">
+              <label class="form-label" for="name">Nombre del negocio</label>
+              <input class="form-input" id="name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="whatsapp">WhatsApp del negocio</label>
+              <input class="form-input" id="whatsapp" placeholder="88887777" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sinpeNumber">Número Sinpe Móvil</label>
+              <input class="form-input" id="sinpeNumber" placeholder="88887777" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sinpeName">Nombre en Sinpe</label>
+              <input class="form-input" id="sinpeName" placeholder="Como aparece en el Sinpe" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="welcome">Mensaje del menú</label>
+              <textarea class="form-textarea" id="welcome" rows="2"></textarea>
+            </div>
+            <div class="form-row">
+              <label class="form-check"><input type="checkbox" id="menuOpen" /> Menú abierto a pedidos</label>
+              <label class="form-check"><input type="checkbox" id="expressEnabled" /> Express habilitado</label>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Guardar cambios</button>
+          </form>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Licencia</div></div>
+            <div class="mb-2">
+              <div class="small muted">Estado</div>
+              <div id="licStatus" class="badge badge-success">—</div>
+            </div>
+            <div class="mb-2">
+              <div class="small muted">Vence</div>
+              <div id="licEnd">—</div>
+            </div>
+            <div class="mb-2">
+              <div class="small muted">Días restantes</div>
+              <div id="licDays" style="font-size:1.5rem;font-weight:700">—</div>
+            </div>
+            <div class="mb-2">
+              <div class="small muted">Enlace del menú</div>
+              <input class="form-input" id="menuLink" readonly />
+              <button type="button" class="btn btn-secondary btn-sm mt-1" id="copyMenu">Copiar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireRole } from '/js/auth.js';
+    import { initShell } from '/js/shell.js';
+    import { getBusiness, updateBusinessSettings, menuPublicUrl } from '/js/business/settings.js';
+    import { daysRemaining, formatDateShort, licenseStatus } from '/js/utils.js';
+    import { toast } from '/js/notifications.js';
+
+    const session = await requireRole('business');
+    if (!session) throw new Error('auth');
+    const businessId = session.profile.businessId;
+    const business = await getBusiness(businessId);
+    if (!business) {
+      toast('Negocio no encontrado', 'error');
+      throw new Error('missing');
+    }
+
+    initShell({ userName: session.profile.name, roleLabel: business.name });
+    document.getElementById('bizBrand').textContent = business.name;
+
+    const s = business.settings || {};
+    document.getElementById('name').value = business.name || '';
+    document.getElementById('whatsapp').value = s.whatsapp || business.phone || '';
+    document.getElementById('sinpeNumber').value = s.sinpeNumber || '';
+    document.getElementById('sinpeName').value = s.sinpeName || '';
+    document.getElementById('welcome').value = s.welcomeMessage || '';
+    document.getElementById('menuOpen').checked = s.menuOpen !== false;
+    document.getElementById('expressEnabled').checked = s.expressEnabled !== false;
+
+    const ls = licenseStatus(business.license?.endDate, business.status);
+    const licEl = document.getElementById('licStatus');
+    licEl.textContent = ls.label;
+    licEl.className = 'badge ' + ls.class;
+    document.getElementById('licEnd').textContent = formatDateShort(business.license?.endDate);
+    document.getElementById('licDays').textContent = daysRemaining(business.license?.endDate);
+
+    const link = menuPublicUrl(businessId);
+    document.getElementById('menuLink').value = link;
+    document.getElementById('copyMenu').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(link);
+      toast('Copiado', 'success');
+    });
+
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await updateBusinessSettings(businessId, {
+          name: document.getElementById('name').value.trim(),
+          whatsapp: document.getElementById('whatsapp').value.trim(),
+          phone: document.getElementById('whatsapp').value.trim(),
+          sinpeNumber: document.getElementById('sinpeNumber').value.trim(),
+          sinpeName: document.getElementById('sinpeName').value.trim(),
+          welcomeMessage: document.getElementById('welcome').value.trim(),
+          menuOpen: document.getElementById('menuOpen').checked,
+          expressEnabled: document.getElementById('expressEnabled').checked
+        });
+        // Also update root name
+        const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+        const { db } = await import('/js/firebase-config.js');
+        await updateDoc(doc(db, 'businesses', businessId), {
+          name: document.getElementById('name').value.trim(),
+          phone: document.getElementById('whatsapp').value.trim(),
+          updatedAt: serverTimestamp()
+        });
+        toast('Ajustes guardados', 'success');
+        document.getElementById('bizBrand').textContent = document.getElementById('name').value.trim();
+      } catch (err) {
+        toast(err.message || 'Error al guardar', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

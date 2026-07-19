@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Menú — Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/business.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-text" id="bizBrand">Bocas</div>
+          <div class="brand-sub">Negocio</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="/business/"><span>🧾</span> Pedidos</a>
+        <a class="nav-item active" href="/business/menu.html"><span>📋</span> Menú</a>
+        <a class="nav-item" href="/business/locations.html"><span>📍</span> Express</a>
+        <a class="nav-item" href="/business/clients.html"><span>👥</span> Clientes</a>
+        <a class="nav-item" href="/business/stats.html"><span>📊</span> Estadísticas</a>
+        <a class="nav-item" href="/business/settings.html"><span>⚙️</span> Ajustes</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="userAvatar">N</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Negocio</div>
+            <div class="user-role" id="userRole">Panel</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm w-full mt-1" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-toggle" id="menuToggle">☰</button>
+          <h1 class="page-title">Menú digital</h1>
+        </div>
+        <div class="flex gap-1">
+          <button type="button" class="btn btn-secondary btn-sm" id="copyLink">Copiar enlace</button>
+          <button type="button" class="btn btn-primary btn-sm" id="openItem">+ Platillo</button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="grid grid-2 mb-3" style="align-items:start">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Categorías</div>
+              <button type="button" class="btn btn-sm btn-secondary" id="addCat">+ Categoría</button>
+            </div>
+            <div id="catList" class="flex flex-wrap gap-1"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Enlace público</div>
+            </div>
+            <p class="small muted mb-1">Compártelo con tus clientes para que pidan solos.</p>
+            <input class="form-input" id="publicLink" readonly />
+            <a id="openPublic" class="btn btn-ghost btn-sm mt-1" target="_blank" rel="noopener">Abrir menú ↗</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Platillos</div>
+          </div>
+          <div id="itemsList" class="grid gap-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="itemModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="itemModalTitle">Nuevo platillo</h3>
+        <button type="button" class="btn btn-ghost btn-icon" id="closeItem">×</button>
+      </div>
+      <form id="itemForm">
+        <input type="hidden" id="itemId" />
+        <div class="form-group">
+          <label class="form-label" for="itemName">Nombre *</label>
+          <input class="form-input" id="itemName" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="itemDesc">Descripción</label>
+          <textarea class="form-textarea" id="itemDesc" rows="2"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="itemPrice">Precio (₡) *</label>
+            <input class="form-input" type="number" id="itemPrice" required min="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="itemCat">Categoría</label>
+            <select class="form-select" id="itemCat"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="itemImage">Imagen</label>
+          <input class="form-input" type="file" id="itemImage" accept="image/*" />
+        </div>
+        <div class="form-row">
+          <label class="form-check"><input type="checkbox" id="itemAvailable" checked /> Disponible</label>
+          <label class="form-check"><input type="checkbox" id="itemActive" checked /> Visible en menú</label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="cancelItem">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireRole } from '/js/auth.js';
+    import { initShell } from '/js/shell.js';
+    import { getBusiness, menuPublicUrl } from '/js/business/settings.js';
+    import {
+      listCategories,
+      listMenuItems,
+      addCategory,
+      addMenuItem,
+      updateMenuItem,
+      deleteMenuItem,
+      renderMenuItemsList
+    } from '/js/business/menu-admin.js';
+    import { escapeHtml } from '/js/utils.js';
+    import { toast, confirmDialog } from '/js/notifications.js';
+
+    const session = await requireRole('business');
+    if (!session) throw new Error('auth');
+    const businessId = session.profile.businessId;
+    const business = await getBusiness(businessId);
+    const businessName = business?.name || 'Negocio';
+    initShell({ userName: session.profile.name, roleLabel: businessName });
+    document.getElementById('bizBrand').textContent = businessName;
+
+    const link = menuPublicUrl(businessId);
+    document.getElementById('publicLink').value = link;
+    document.getElementById('openPublic').href = link;
+    document.getElementById('copyLink').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(link);
+      toast('Enlace copiado', 'success');
+    });
+
+    let categories = [];
+    let items = [];
+
+    async function refresh() {
+      categories = await listCategories(businessId);
+      items = await listMenuItems(businessId);
+      document.getElementById('catList').innerHTML =
+        categories
+          .map((c) => `<span class="badge badge-neutral" style="padding:0.4rem 0.7rem">${escapeHtml(c.name)}</span>`)
+          .join('') || '<span class="muted small">Sin categorías</span>';
+
+      const sel = document.getElementById('itemCat');
+      sel.innerHTML =
+        '<option value="">Sin categoría</option>' +
+        categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+      renderMenuItemsList(items, categories, document.getElementById('itemsList'));
+    }
+
+    document.getElementById('addCat').addEventListener('click', async () => {
+      const name = prompt('Nombre de la categoría (ej: Desayunos, Bebidas)');
+      if (!name?.trim()) return;
+      await addCategory(businessId, { name, order: categories.length });
+      toast('Categoría creada', 'success');
+      await refresh();
+    });
+
+    const modal = document.getElementById('itemModal');
+    const openItem = (item) => {
+      document.getElementById('itemId').value = item?.id || '';
+      document.getElementById('itemModalTitle').textContent = item ? 'Editar platillo' : 'Nuevo platillo';
+      document.getElementById('itemName').value = item?.name || '';
+      document.getElementById('itemDesc').value = item?.description || '';
+      document.getElementById('itemPrice').value = item?.price ?? '';
+      document.getElementById('itemCat').value = item?.categoryId || '';
+      document.getElementById('itemAvailable').checked = item?.available !== false;
+      document.getElementById('itemActive').checked = item?.active !== false;
+      document.getElementById('itemImage').value = '';
+      modal.classList.remove('hidden');
+      requestAnimationFrame(() => modal.classList.add('modal-in'));
+    };
+    const closeItem = () => {
+      modal.classList.add('modal-out');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('modal-in', 'modal-out');
+      }, 200);
+    };
+
+    document.getElementById('openItem').addEventListener('click', () => openItem(null));
+    document.getElementById('closeItem').addEventListener('click', closeItem);
+    document.getElementById('cancelItem').addEventListener('click', closeItem);
+
+    document.getElementById('itemForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('itemId').value;
+      const payload = {
+        name: document.getElementById('itemName').value,
+        description: document.getElementById('itemDesc').value,
+        price: document.getElementById('itemPrice').value,
+        categoryId: document.getElementById('itemCat').value,
+        available: document.getElementById('itemAvailable').checked,
+        active: document.getElementById('itemActive').checked
+      };
+      const file = document.getElementById('itemImage').files[0];
+      try {
+        if (id) await updateMenuItem(businessId, id, payload, file);
+        else await addMenuItem(businessId, payload, file);
+        toast('Platillo guardado', 'success');
+        closeItem();
+        await refresh();
+      } catch (err) {
+        toast(err.message || 'Error al guardar', 'error');
+      }
+    });
+
+    document.getElementById('itemsList').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (btn.dataset.act === 'edit') {
+        openItem(items.find((i) => i.id === id));
+      } else if (btn.dataset.act === 'del') {
+        const ok = await confirmDialog({
+          title: 'Eliminar platillo',
+          message: 'Esta acción no se puede deshacer.',
+          confirmText: 'Eliminar',
+          danger: true
+        });
+        if (!ok) return;
+        await deleteMenuItem(businessId, id);
+        toast('Eliminado', 'info');
+        await refresh();
+      }
+    });
+
+    await refresh();
+  </script>
+</body>
+</html>

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Pedidos — Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/business.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-text" id="bizBrand">Bocas</div>
+          <div class="brand-sub">Negocio</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" href="/business/"><span>🧾</span> Pedidos</a>
+        <a class="nav-item" href="/business/menu.html"><span>📋</span> Menú</a>
+        <a class="nav-item" href="/business/locations.html"><span>📍</span> Express</a>
+        <a class="nav-item" href="/business/clients.html"><span>👥</span> Clientes</a>
+        <a class="nav-item" href="/business/stats.html"><span>📊</span> Estadísticas</a>
+        <a class="nav-item" href="/business/settings.html"><span>⚙️</span> Ajustes</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="userAvatar">N</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Negocio</div>
+            <div class="user-role" id="userRole">Panel</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm w-full mt-1" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
+          <h1 class="page-title">Pedidos</h1>
+          <span class="live-bar"><span class="live-dot"></span> En vivo</span>
+        </div>
+        <div class="flex gap-1 flex-wrap">
+          <div class="tabs" id="viewTabs">
+            <button type="button" class="tab active" data-view="grid">Tarjetas</button>
+            <button type="button" class="tab" data-view="kanban">Columnas</button>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="openManual">+ Pedido manual</button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div id="ordersBoard" class="orders-grid">
+          <div class="loading-block" style="grid-column:1/-1"><div class="spinner"></div>Conectando pedidos en tiempo real…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual order modal -->
+  <div class="modal-overlay hidden" id="orderModal">
+    <div class="modal modal-xl" role="dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Pedido manual</h3>
+        <button type="button" class="btn btn-ghost btn-icon" id="closeOrderModal">×</button>
+      </div>
+      <form id="orderForm">
+        <div class="form-row">
+          <div class="form-group autocomplete-wrap">
+            <label class="form-label" for="clientSearch">Cliente (busca para auto-rellenar)</label>
+            <input class="form-input" id="clientSearch" placeholder="Nombre o teléfono…" autocomplete="off" />
+            <div class="autocomplete-list" id="clientSuggest"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="clientPhone">Teléfono / WhatsApp *</label>
+            <input class="form-input" id="clientPhone" required placeholder="88887777" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="clientName">Nombre *</label>
+            <input class="form-input" id="clientName" required placeholder="Nombre del cliente" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="clientAddress">Dirección</label>
+            <input class="form-input" id="clientAddress" placeholder="Dirección o referencia" />
+          </div>
+        </div>
+
+        <div class="card mb-2" style="padding: 1rem;">
+          <div class="flex justify-between items-center mb-1">
+            <strong class="small">Productos</strong>
+            <button type="button" class="btn btn-sm btn-secondary" id="addLine">+ Línea</button>
+          </div>
+          <div class="builder-items" id="builderItems"></div>
+          <p class="xs">Tip: escribe el nombre o elige del menú con el selector.</p>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-check">
+              <input type="checkbox" id="isExpress" />
+              Enviar express
+            </label>
+          </div>
+          <div class="form-group" id="locationGroup" style="display:none">
+            <label class="form-label" for="locationSelect">Ubicación / tarifa</label>
+            <select class="form-select" id="locationSelect">
+              <option value="">Seleccionar…</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Método de pago</label>
+            <select class="form-select" id="paymentMethod">
+              <option value="efectivo">Efectivo</option>
+              <option value="sinpe">Sinpe Móvil</option>
+            </select>
+          </div>
+          <div class="form-group" id="cashGroup">
+            <label class="form-label" for="cashAmount">¿Con cuánto paga? (vuelto)</label>
+            <input class="form-input" type="number" id="cashAmount" min="0" placeholder="Ej: 10000" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="orderNotes">Notas</label>
+          <textarea class="form-textarea" id="orderNotes" rows="2" placeholder="Sin cebolla, llamar al llegar…"></textarea>
+        </div>
+
+        <div class="flex justify-between items-center mb-2">
+          <span class="muted small">Total estimado</span>
+          <strong id="builderTotal" style="font-size:1.25rem">₡0</strong>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="cancelOrder">Cancelar</button>
+          <button type="submit" class="btn btn-secondary" id="saveOnly">Guardar pedido</button>
+          <button type="button" class="btn btn-whatsapp" id="saveAndWa">Guardar y WhatsApp</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireRole } from '/js/auth.js';
+    import { initShell } from '/js/shell.js';
+    import { getBusiness } from '/js/business/settings.js';
+    import {
+      listenOrders,
+      updateOrderStatus,
+      createOrder,
+      renderOrdersBoard,
+      loadMenuItems,
+      loadLocations,
+      searchClients,
+      whatsappConfirmOrder
+    } from '/js/business/orders.js';
+    import { formatMoney, debounce, escapeHtml } from '/js/utils.js';
+    import { toast } from '/js/notifications.js';
+
+    const session = await requireRole('business');
+    if (!session) throw new Error('auth');
+
+    const businessId = session.profile.businessId;
+    if (!businessId) {
+      toast('Cuenta sin negocio asignado', 'error');
+      throw new Error('no business');
+    }
+
+    const business = await getBusiness(businessId);
+    const businessName = business?.name || session.profile.businessName || 'Negocio';
+
+    initShell({ userName: session.profile.name || businessName, roleLabel: businessName });
+    document.getElementById('bizBrand').textContent = businessName;
+
+    let viewMode = 'grid';
+    let currentOrders = [];
+    let menuItems = [];
+    let locations = [];
+    let sendWaAfter = false;
+
+    const board = document.getElementById('ordersBoard');
+
+    // Realtime
+    listenOrders(businessId, {
+      onChange: (orders) => {
+        currentOrders = orders;
+        renderOrdersBoard(orders, board, businessName, viewMode);
+      }
+    });
+
+    board.addEventListener('change', async (e) => {
+      const sel = e.target.closest('[data-status]');
+      if (!sel) return;
+      const id = sel.getAttribute('data-id');
+      const status = sel.value;
+      try {
+        await updateOrderStatus(businessId, id, status);
+        toast(`Estado: ${sel.options[sel.selectedIndex].text}`, 'success', 2000);
+      } catch (err) {
+        toast(err.message || 'Error al actualizar', 'error');
+      }
+    });
+
+    document.getElementById('viewTabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('[data-view]');
+      if (!tab) return;
+      viewMode = tab.dataset.view;
+      document.querySelectorAll('#viewTabs .tab').forEach((t) => t.classList.toggle('active', t === tab));
+      renderOrdersBoard(currentOrders, board, businessName, viewMode);
+    });
+
+    // Manual order modal
+    const modal = document.getElementById('orderModal');
+    const openM = async () => {
+      menuItems = await loadMenuItems(businessId);
+      locations = await loadLocations(businessId);
+      fillLocations();
+      document.getElementById('builderItems').innerHTML = '';
+      addLine();
+      recalc();
+      modal.classList.remove('hidden');
+      requestAnimationFrame(() => modal.classList.add('modal-in'));
+    };
+    const closeM = () => {
+      modal.classList.add('modal-out');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('modal-in', 'modal-out');
+      }, 200);
+    };
+
+    document.getElementById('openManual').addEventListener('click', openM);
+    document.getElementById('closeOrderModal').addEventListener('click', closeM);
+    document.getElementById('cancelOrder').addEventListener('click', closeM);
+
+    function fillLocations() {
+      const sel = document.getElementById('locationSelect');
+      sel.innerHTML =
+        '<option value="">Seleccionar…</option>' +
+        locations
+          .map((l) => `<option value="${l.id}" data-fee="${l.expressFee}" data-name="${escapeHtml(l.name)}">${escapeHtml(l.name)} — ${formatMoney(l.expressFee)}</option>`)
+          .join('');
+    }
+
+    function menuOptionsHtml() {
+      return (
+        '<option value="">Personalizado…</option>' +
+        menuItems
+          .map((m) => `<option value="${m.id}" data-name="${escapeHtml(m.name)}" data-price="${m.price}">${escapeHtml(m.name)} — ${formatMoney(m.price)}</option>`)
+          .join('')
+      );
+    }
+
+    function addLine(preset) {
+      const row = document.createElement('div');
+      row.className = 'builder-row';
+      row.innerHTML = `
+        <div>
+          <select class="form-select line-menu">${menuOptionsHtml()}</select>
+          <input class="form-input line-name mt-1" placeholder="Nombre del platillo" value="${escapeHtml(preset?.name || '')}" />
+        </div>
+        <input class="form-input line-qty" type="number" min="1" value="${preset?.qty || 1}" />
+        <input class="form-input line-price" type="number" min="0" step="1" value="${preset?.price || ''}" placeholder="Precio" />
+        <button type="button" class="btn btn-ghost btn-icon line-remove" title="Quitar">×</button>
+      `;
+      document.getElementById('builderItems').appendChild(row);
+
+      row.querySelector('.line-menu').addEventListener('change', (e) => {
+        const opt = e.target.selectedOptions[0];
+        if (!opt?.value) return;
+        row.querySelector('.line-name').value = opt.dataset.name || '';
+        row.querySelector('.line-price').value = opt.dataset.price || 0;
+        recalc();
+      });
+      row.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', recalc));
+      row.querySelector('.line-remove').addEventListener('click', () => {
+        row.remove();
+        recalc();
+      });
+    }
+
+    document.getElementById('addLine').addEventListener('click', () => addLine());
+
+    document.getElementById('isExpress').addEventListener('change', (e) => {
+      document.getElementById('locationGroup').style.display = e.target.checked ? '' : 'none';
+      recalc();
+    });
+    document.getElementById('locationSelect').addEventListener('change', recalc);
+    document.getElementById('paymentMethod').addEventListener('change', (e) => {
+      document.getElementById('cashGroup').style.display = e.target.value === 'efectivo' ? '' : 'none';
+    });
+
+    function collectItems() {
+      return [...document.querySelectorAll('#builderItems .builder-row')]
+        .map((row) => ({
+          name: row.querySelector('.line-name').value.trim(),
+          qty: Number(row.querySelector('.line-qty').value) || 1,
+          price: Number(row.querySelector('.line-price').value) || 0
+        }))
+        .filter((i) => i.name);
+    }
+
+    function recalc() {
+      const items = collectItems();
+      let fee = 0;
+      if (document.getElementById('isExpress').checked) {
+        const opt = document.getElementById('locationSelect').selectedOptions[0];
+        fee = Number(opt?.dataset?.fee) || 0;
+      }
+      const sub = items.reduce((s, i) => s + i.price * i.qty, 0);
+      document.getElementById('builderTotal').textContent = formatMoney(sub + fee);
+    }
+
+    // Client autocomplete
+    const suggest = document.getElementById('clientSuggest');
+    const clientSearch = document.getElementById('clientSearch');
+    const doSearch = debounce(async () => {
+      const term = clientSearch.value.trim();
+      if (term.length < 1) {
+        suggest.classList.remove('show');
+        return;
+      }
+      const results = await searchClients(businessId, term);
+      if (!results.length) {
+        suggest.classList.remove('show');
+        return;
+      }
+      suggest.innerHTML = results
+        .map(
+          (c) =>
+            `<div class="autocomplete-item" data-name="${escapeHtml(c.name)}" data-phone="${escapeHtml(c.phone || '')}" data-address="${escapeHtml(c.address || '')}">
+              <strong>${escapeHtml(c.name)}</strong>
+              <div class="xs">${escapeHtml(c.phone || '')} ${c.address ? '· ' + escapeHtml(c.address) : ''}</div>
+            </div>`
+        )
+        .join('');
+      suggest.classList.add('show');
+    }, 220);
+
+    clientSearch.addEventListener('input', doSearch);
+    suggest.addEventListener('click', (e) => {
+      const item = e.target.closest('.autocomplete-item');
+      if (!item) return;
+      document.getElementById('clientName').value = item.dataset.name || '';
+      document.getElementById('clientPhone').value = item.dataset.phone || '';
+      document.getElementById('clientAddress').value = item.dataset.address || '';
+      clientSearch.value = item.dataset.name || '';
+      suggest.classList.remove('show');
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.autocomplete-wrap')) suggest.classList.remove('show');
+    });
+
+    async function submitOrder(andWa) {
+      const isExpress = document.getElementById('isExpress').checked;
+      const locOpt = document.getElementById('locationSelect').selectedOptions[0];
+      const paymentMethod = document.getElementById('paymentMethod').value;
+
+      const orderData = {
+        client: {
+          name: document.getElementById('clientName').value.trim(),
+          phone: document.getElementById('clientPhone').value.trim(),
+          address: document.getElementById('clientAddress').value.trim()
+        },
+        items: collectItems(),
+        isExpress,
+        locationId: isExpress ? locOpt?.value || null : null,
+        locationName: isExpress ? locOpt?.dataset?.name || '' : '',
+        expressFee: isExpress ? Number(locOpt?.dataset?.fee) || 0 : 0,
+        paymentMethod,
+        cashAmount: paymentMethod === 'efectivo' ? document.getElementById('cashAmount').value : null,
+        notes: document.getElementById('orderNotes').value.trim(),
+        source: 'manual'
+      };
+
+      if (!orderData.client.name || !orderData.client.phone) {
+        toast('Nombre y teléfono son obligatorios', 'warning');
+        return;
+      }
+      if (!orderData.items.length) {
+        toast('Agrega productos al pedido', 'warning');
+        return;
+      }
+      if (isExpress && !orderData.locationId) {
+        toast('Selecciona la ubicación de express', 'warning');
+        return;
+      }
+
+      try {
+        const created = await createOrder(businessId, orderData, businessName);
+        toast('Pedido creado', 'success');
+        if (andWa) {
+          const link = whatsappConfirmOrder(
+            { ...orderData, total: created.total, items: orderData.items },
+            businessName
+          );
+          if (link) window.open(link, '_blank');
+        }
+        document.getElementById('orderForm').reset();
+        document.getElementById('cashGroup').style.display = '';
+        document.getElementById('locationGroup').style.display = 'none';
+        closeM();
+      } catch (err) {
+        toast(err.message || 'Error al crear pedido', 'error');
+      }
+    }
+
+    document.getElementById('orderForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitOrder(false);
+    });
+    document.getElementById('saveAndWa').addEventListener('click', () => submitOrder(true));
+  </script>
+</body>
+</html>

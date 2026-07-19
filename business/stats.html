@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Estadísticas — Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/business.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-text" id="bizBrand">Bocas</div>
+          <div class="brand-sub">Negocio</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="/business/"><span>🧾</span> Pedidos</a>
+        <a class="nav-item" href="/business/menu.html"><span>📋</span> Menú</a>
+        <a class="nav-item" href="/business/locations.html"><span>📍</span> Express</a>
+        <a class="nav-item" href="/business/clients.html"><span>👥</span> Clientes</a>
+        <a class="nav-item active" href="/business/stats.html"><span>📊</span> Estadísticas</a>
+        <a class="nav-item" href="/business/settings.html"><span>⚙️</span> Ajustes</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar" id="userAvatar">N</div>
+          <div class="user-meta">
+            <div class="user-name" id="userName">Negocio</div>
+            <div class="user-role" id="userRole">Panel</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm w-full mt-1" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="menu-toggle" id="menuToggle">☰</button>
+          <h1 class="page-title">Estadísticas</h1>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="exportBtn">⬇ Excel</button>
+      </header>
+
+      <div class="page-content">
+        <div class="toolbar">
+          <div class="tabs" id="filterTabs">
+            <button type="button" class="tab active" data-f="day">Hoy</button>
+            <button type="button" class="tab" data-f="week">Semana</button>
+            <button type="button" class="tab" data-f="month">Mes</button>
+            <button type="button" class="tab" data-f="year">Año</button>
+          </div>
+        </div>
+
+        <div class="grid grid-3 mb-3">
+          <div class="stat-card">
+            <div class="stat-label">Ventas</div>
+            <div class="stat-value" id="stSales">₡0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Pedidos</div>
+            <div class="stat-value" id="stOrders">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Ticket promedio</div>
+            <div class="stat-value" id="stAvg">₡0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Express</div>
+            <div class="stat-value" id="stExpress">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Efectivo</div>
+            <div class="stat-value" id="stCash">₡0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Sinpe Móvil</div>
+            <div class="stat-value" id="stSinpe">₡0</div>
+          </div>
+        </div>
+
+        <div class="grid grid-2 mb-3">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Ventas en el periodo</div></div>
+            <div style="height:260px"><canvas id="dayChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Top productos</div></div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Producto</th><th>Cant.</th><th>Ventas</th></tr></thead>
+                <tbody id="topTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireRole } from '/js/auth.js';
+    import { initShell } from '/js/shell.js';
+    import { getBusiness } from '/js/business/settings.js';
+    import {
+      loadOrdersInRange,
+      computeStats,
+      renderBizStats,
+      renderDayChart,
+      exportStatsExcel
+    } from '/js/business/stats.js';
+    import { formatMoney, escapeHtml } from '/js/utils.js';
+    import { toast } from '/js/notifications.js';
+
+    const session = await requireRole('business');
+    if (!session) throw new Error('auth');
+    const businessId = session.profile.businessId;
+    const business = await getBusiness(businessId);
+    const businessName = business?.name || 'Negocio';
+    initShell({ userName: session.profile.name, roleLabel: businessName });
+    document.getElementById('bizBrand').textContent = businessName;
+
+    let filter = 'day';
+    let stats = null;
+    const labels = { day: 'Hoy', week: 'Semana', month: 'Mes', year: 'Año' };
+
+    async function load() {
+      const orders = await loadOrdersInRange(businessId, filter);
+      stats = computeStats(orders);
+      renderBizStats(stats);
+      renderDayChart('dayChart', stats.byDay);
+      document.getElementById('topTable').innerHTML =
+        stats.topItems
+          .map(
+            (p) =>
+              `<tr><td>${escapeHtml(p.name)}</td><td>${p.qty}</td><td>${formatMoney(p.sales)}</td></tr>`
+          )
+          .join('') || '<tr><td colspan="3"><div class="empty-state small">Sin ventas en este periodo</div></td></tr>';
+    }
+
+    document.getElementById('filterTabs').addEventListener('click', async (e) => {
+      const tab = e.target.closest('[data-f]');
+      if (!tab) return;
+      filter = tab.dataset.f;
+      document.querySelectorAll('#filterTabs .tab').forEach((t) => t.classList.toggle('active', t === tab));
+      try {
+        await load();
+      } catch (err) {
+        toast(err.message || 'Error', 'error');
+      }
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      if (!stats) return toast('Sin datos para exportar', 'warning');
+      try {
+        exportStatsExcel(stats, businessName, labels[filter]);
+        toast('Excel descargado', 'success');
+      } catch (err) {
+        toast(err.message || 'Error al exportar', 'error');
+      }
+    });
+
+    try {
+      await load();
+    } catch (err) {
+      toast(err.message || 'Error cargando estadísticas', 'error');
+    }
+  </script>
+</body>
+</html>
