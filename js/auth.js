@@ -23,6 +23,47 @@ import { auth, db } from './firebase-config.js';
 
 export { auth, db };
 
+/**
+ * Resolve app-relative URLs so CSS/JS/routes work on:
+ * - Firebase Hosting root (https://xxx.web.app/)
+ * - GitHub Pages project (https://user.github.io/repo/)
+ * - Local server (http://localhost:5500/)
+ */
+export function appUrl(path = '') {
+  const clean = String(path || '').replace(/^\//, '');
+  const pathname = window.location.pathname.replace(/\\/g, '/');
+
+  let baseDir = '/';
+  const markers = ['/admin/', '/admin', '/business/', '/business', '/menu/', '/menu'];
+  let found = false;
+  for (const m of markers) {
+    const idx = pathname.indexOf(m);
+    if (idx >= 0) {
+      baseDir = pathname.slice(0, idx) + '/';
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    // Root pages: /login.html, /setup.html, /index.html or /repo/login.html
+    if (/\/[^/]+\.html$/i.test(pathname)) {
+      baseDir = pathname.replace(/\/[^/]+\.html$/i, '/');
+    } else if (pathname.endsWith('/')) {
+      baseDir = pathname;
+    } else {
+      baseDir = pathname.replace(/\/[^/]+$/, '/') || '/';
+    }
+  }
+
+  if (!baseDir.endsWith('/')) baseDir += '/';
+  return new URL(clean, window.location.origin + baseDir).href;
+}
+
+export function go(path) {
+  window.location.href = appUrl(path);
+}
+
 export function waitForAuth() {
   return new Promise((resolve) => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -80,8 +121,7 @@ export async function login(email, password) {
 
 export async function logout() {
   await signOut(auth);
-  // Support both root and subpath local servers
-  window.location.href = new URL('/login.html', window.location.origin).href;
+  go('login.html');
 }
 
 /**
@@ -91,19 +131,19 @@ export async function logout() {
 export async function requireRole(role) {
   const user = await waitForAuth();
   if (!user) {
-    window.location.href = '/login.html';
+    go('login.html');
     return null;
   }
   const profile = await getUserProfile(user.uid);
   if (!profile || profile.role !== role) {
-    if (profile?.role === 'admin') window.location.href = '/admin/';
-    else if (profile?.role === 'business') window.location.href = '/business/';
-    else window.location.href = '/login.html';
+    if (profile?.role === 'admin') go('admin/');
+    else if (profile?.role === 'business') go('business/');
+    else go('login.html');
     return null;
   }
   if (role === 'business' && profile.status !== 'active') {
     await signOut(auth);
-    window.location.href = '/login.html';
+    go('login.html');
     return null;
   }
   return { user, profile };
