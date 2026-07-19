@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/main.css" />
-  <link rel="stylesheet" href="/css/business.css" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="../css/business.css" />
 </head>
 <body>
   <div class="app-shell">
@@ -21,12 +21,12 @@
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a class="nav-item" href="/business/"><span>🧾</span> Pedidos</a>
-        <a class="nav-item" href="/business/menu.html"><span>📋</span> Menú</a>
-        <a class="nav-item" href="/business/locations.html"><span>📍</span> Express</a>
-        <a class="nav-item" href="/business/clients.html"><span>👥</span> Clientes</a>
-        <a class="nav-item" href="/business/stats.html"><span>📊</span> Estadísticas</a>
-        <a class="nav-item active" href="/business/settings.html"><span>⚙️</span> Ajustes</a>
+        <a class="nav-item" href="./"><span>🧾</span> Pedidos</a>
+        <a class="nav-item" href="menu.html"><span>📋</span> Menú</a>
+        <a class="nav-item" href="locations.html"><span>📍</span> Express</a>
+        <a class="nav-item" href="clients.html"><span>👥</span> Clientes</a>
+        <a class="nav-item" href="stats.html"><span>📊</span> Estadísticas</a>
+        <a class="nav-item active" href="settings.html"><span>⚙️</span> Ajustes</a>
       </nav>
       <div class="sidebar-footer">
         <div class="user-chip">
@@ -106,11 +106,11 @@
   </div>
 
   <script type="module">
-    import { requireRole } from '/js/auth.js';
-    import { initShell } from '/js/shell.js';
-    import { getBusiness, updateBusinessSettings, menuPublicUrl } from '/js/business/settings.js';
-    import { daysRemaining, formatDateShort, licenseStatus } from '/js/utils.js';
-    import { toast } from '/js/notifications.js';
+    import { requireRole } from '../js/auth.js';
+    import { initShell } from '../js/shell.js';
+    import { getBusiness, updateBusinessSettings, menuPublicUrl } from '../js/business/settings.js';
+    import { daysRemaining, formatDateShort, licenseStatus } from '../js/utils.js';
+    import { toast } from '../js/notifications.js';
 
     const session = await requireRole('business');
     if (!session) throw new Error('auth');
@@ -162,7 +162,7 @@
         });
         // Also update root name
         const { doc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
-        const { db } = await import('/js/firebase-config.js');
+        const { db } = await import('../js/firebase-config.js');
         await updateDoc(doc(db, 'businesses', businessId), {
           name: document.getElementById('name').value.trim(),
           phone: document.getElementById('whatsapp').value.trim(),

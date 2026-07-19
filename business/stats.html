@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/main.css" />
-  <link rel="stylesheet" href="/css/business.css" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="../css/business.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -23,12 +23,12 @@
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a class="nav-item" href="/business/"><span>🧾</span> Pedidos</a>
-        <a class="nav-item" href="/business/menu.html"><span>📋</span> Menú</a>
-        <a class="nav-item" href="/business/locations.html"><span>📍</span> Express</a>
-        <a class="nav-item" href="/business/clients.html"><span>👥</span> Clientes</a>
-        <a class="nav-item active" href="/business/stats.html"><span>📊</span> Estadísticas</a>
-        <a class="nav-item" href="/business/settings.html"><span>⚙️</span> Ajustes</a>
+        <a class="nav-item" href="./"><span>🧾</span> Pedidos</a>
+        <a class="nav-item" href="menu.html"><span>📋</span> Menú</a>
+        <a class="nav-item" href="locations.html"><span>📍</span> Express</a>
+        <a class="nav-item" href="clients.html"><span>👥</span> Clientes</a>
+        <a class="nav-item active" href="stats.html"><span>📊</span> Estadísticas</a>
+        <a class="nav-item" href="settings.html"><span>⚙️</span> Ajustes</a>
       </nav>
       <div class="sidebar-footer">
         <div class="user-chip">
@@ -109,18 +109,18 @@
   </div>
 
   <script type="module">
-    import { requireRole } from '/js/auth.js';
-    import { initShell } from '/js/shell.js';
-    import { getBusiness } from '/js/business/settings.js';
+    import { requireRole } from '../js/auth.js';
+    import { initShell } from '../js/shell.js';
+    import { getBusiness } from '../js/business/settings.js';
     import {
       loadOrdersInRange,
       computeStats,
       renderBizStats,
       renderDayChart,
       exportStatsExcel
-    } from '/js/business/stats.js';
-    import { formatMoney, escapeHtml } from '/js/utils.js';
-    import { toast } from '/js/notifications.js';
+    } from '../js/business/stats.js';
+    import { formatMoney, escapeHtml } from '../js/utils.js';
+    import { toast } from '../js/notifications.js';
 
     const session = await requireRole('business');
     if (!session) throw new Error('auth');
