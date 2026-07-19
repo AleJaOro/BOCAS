@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Menú — Bocas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/menu.css" />
+</head>
+<body>
+  <div id="app" class="menu-public">
+    <div class="loading-block" id="loading"><div class="spinner"></div>Cargando menú…</div>
+  </div>
+
+  <!-- Cart sheet modal -->
+  <div class="modal-overlay hidden" id="cartModal">
+    <div class="modal modal-lg cart-sheet" role="dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Tu pedido</h3>
+        <button type="button" class="btn btn-ghost btn-icon" id="closeCart">×</button>
+      </div>
+      <div id="cartLines"></div>
+      <div class="mt-2 mb-2">
+        <div class="flex justify-between small muted mb-1"><span>Subtotal</span><span id="cartSub">₡0</span></div>
+        <div class="flex justify-between small muted mb-1" id="expressRow" style="display:none"><span>Express</span><span id="cartExpress">₡0</span></div>
+        <div class="flex justify-between" style="font-weight:700;font-size:1.15rem"><span>Total</span><span id="cartTotal">₡0</span></div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0" />
+
+      <div class="form-group">
+        <label class="form-label" for="cName">Tu nombre *</label>
+        <input class="form-input" id="cName" required placeholder="Nombre completo" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="cPhone">Teléfono / WhatsApp *</label>
+        <input class="form-input" id="cPhone" required inputmode="tel" placeholder="88887777" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="cAddress">Dirección</label>
+        <input class="form-input" id="cAddress" placeholder="Opcional si retiras en local" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-check">
+          <input type="checkbox" id="cExpress" />
+          Quiero express (envío)
+        </label>
+      </div>
+      <div class="form-group" id="locWrap" style="display:none">
+        <label class="form-label" for="cLocation">¿Hacia dónde?</label>
+        <select class="form-select" id="cLocation">
+          <option value="">Selecciona ubicación…</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Método de pago</label>
+        <div class="pay-options">
+          <button type="button" class="pay-option active" data-pay="efectivo">💵 Efectivo</button>
+          <button type="button" class="pay-option" data-pay="sinpe">📱 Sinpe Móvil</button>
+        </div>
+      </div>
+      <div class="form-group" id="cashWrap">
+        <label class="form-label" for="cCash">¿Con cuánto pagas? (para el vuelto)</label>
+        <input class="form-input" type="number" id="cCash" min="0" placeholder="Ej: 10000" />
+        <p class="form-hint" id="changeHint"></p>
+      </div>
+      <div class="form-group hidden" id="sinpeInfo">
+        <div class="card" style="background:var(--success-soft);border-color:#a7f3d0;padding:0.85rem">
+          <p class="small" style="margin:0;color:#065f46" id="sinpeText">Paga por Sinpe Móvil al número del negocio.</p>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="cNotes">Notas del pedido</label>
+        <textarea class="form-textarea" id="cNotes" rows="2" placeholder="Sin cebolla, timbre roto…"></textarea>
+      </div>
+
+      <button type="button" class="btn btn-primary btn-block btn-lg" id="placeOrder">Enviar pedido</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { lockViewportZoom } from '/js/utils.js';
+    import {
+      resolveBusinessId,
+      loadPublicBusiness,
+      loadPublicMenu,
+      placePublicOrder,
+      renderMenuSections,
+      formatMoney,
+      escapeHtml,
+      toast
+    } from '/js/menu/public-menu.js';
+
+    lockViewportZoom();
+
+    const businessId = resolveBusinessId();
+    const app = document.getElementById('app');
+
+    if (!businessId) {
+      app.innerHTML = `<div class="menu-closed"><h2>Enlace incompleto</h2><p>Falta el identificador del negocio en la URL.</p></div>`;
+      throw new Error('no id');
+    }
+
+    let business, menuData;
+    let cart = {}; // id -> { id, name, price, qty }
+    let paymentMethod = 'efectivo';
+
+    try {
+      business = await loadPublicBusiness(businessId);
+      if (!business) {
+        app.innerHTML = `<div class="menu-closed"><h2>Negocio no encontrado</h2><p>Revisa el enlace del menú.</p></div>`;
+        throw new Error('404');
+      }
+      if (business.blocked) {
+        app.innerHTML = `<div class="menu-closed"><h2>Menú no disponible</h2><p>Este negocio no está recibiendo pedidos en este momento.</p></div>`;
+        throw new Error('blocked');
+      }
+      if (business.settings?.menuOpen === false) {
+        app.innerHTML = `<div class="menu-closed"><h2>${escapeHtml(business.name)}</h2><p>El menú está cerrado temporalmente.</p></div>`;
+        throw new Error('closed');
+      }
+
+      menuData = await loadPublicMenu(businessId);
+      document.title = `${business.name} — Menú`;
+
+      app.innerHTML = `
+        <header class="menu-header">
+          <div class="menu-header-inner">
+            <div class="menu-logo" style="display:grid;place-items:center;font-size:1.25rem">🍽️</div>
+            <div>
+              <div class="menu-biz-name">${escapeHtml(business.name)}</div>
+              <div class="menu-biz-tag">${escapeHtml(business.settings?.welcomeMessage || 'Haz tu pedido aquí')}</div>
+            </div>
+          </div>
+          <div class="menu-body" style="padding-top:0;padding-bottom:0">
+            <div class="cat-chips" id="catChips"></div>
+          </div>
+        </header>
+        <main class="menu-body" id="menuBody"></main>
+        <div class="cart-bar" id="cartBar">
+          <div class="cart-bar-inner">
+            <div class="cart-summary">
+              <div class="cart-count" id="barCount">0 productos</div>
+              <div class="cart-total" id="barTotal">₡0</div>
+            </div>
+            <button type="button" class="btn btn-primary" id="openCart">Ver pedido</button>
+          </div>
+        </div>
+      `;
+
+      renderMenuSections(menuData, document.getElementById('menuBody'));
+
+      // locations select
+      const locSel = document.getElementById('cLocation');
+      locSel.innerHTML =
+        '<option value="">Selecciona ubicación…</option>' +
+        menuData.locations
+          .map(
+            (l) =>
+              `<option value="${l.id}" data-fee="${l.expressFee}" data-name="${escapeHtml(l.name)}">${escapeHtml(l.name)} (+${formatMoney(l.expressFee)})</option>`
+          )
+          .join('');
+
+      if (business.settings?.sinpeNumber) {
+        document.getElementById('sinpeText').textContent =
+          `Sinpe Móvil al ${business.settings.sinpeNumber}` +
+          (business.settings.sinpeName ? ` (${business.settings.sinpeName})` : '') +
+          '. Envía el comprobante por WhatsApp si el negocio lo pide.';
+      }
+
+      // Express toggle visibility
+      if (business.settings?.expressEnabled === false || !menuData.locations.length) {
+        document.getElementById('cExpress').closest('.form-group').style.display = 'none';
+      }
+    } catch (err) {
+      if (!['404', 'blocked', 'closed', 'no id'].includes(err.message)) {
+        console.error(err);
+        app.innerHTML = `<div class="menu-closed"><h2>Error</h2><p>${escapeHtml(err.message)}</p></div>`;
+      }
+      throw err;
+    }
+
+    // Chip scroll
+    document.getElementById('catChips')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.cat-chip');
+      if (!chip) return;
+      document.querySelectorAll('.cat-chip').forEach((c) => c.classList.toggle('active', c === chip));
+      document.getElementById(chip.dataset.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    document.getElementById('menuBody').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-add]');
+      if (!btn) return;
+      const id = btn.dataset.add;
+      const item = menuData.items.find((i) => i.id === id);
+      if (!item) return;
+      if (!cart[id]) cart[id] = { id, name: item.name, price: item.price, qty: 0 };
+      cart[id].qty += 1;
+      updateCartUI();
+      toast(`${item.name} agregado`, 'success', 1500);
+    });
+
+    function cartItems() {
+      return Object.values(cart).filter((i) => i.qty > 0);
+    }
+
+    function expressFee() {
+      if (!document.getElementById('cExpress').checked) return 0;
+      const opt = document.getElementById('cLocation').selectedOptions[0];
+      return Number(opt?.dataset?.fee) || 0;
+    }
+
+    function totals() {
+      const items = cartItems();
+      const sub = items.reduce((s, i) => s + i.price * i.qty, 0);
+      const fee = expressFee();
+      return { sub, fee, total: sub + fee, count: items.reduce((s, i) => s + i.qty, 0) };
+    }
+
+    function updateCartUI() {
+      const { sub, fee, total, count } = totals();
+      const bar = document.getElementById('cartBar');
+      if (count > 0) bar.classList.add('show');
+      else bar.classList.remove('show');
+      document.getElementById('barCount').textContent = `${count} producto${count === 1 ? '' : 's'}`;
+      document.getElementById('barTotal').textContent = formatMoney(total);
+
+      // cart lines
+      const lines = document.getElementById('cartLines');
+      const items = cartItems();
+      if (!items.length) {
+        lines.innerHTML = `<p class="muted small">Carrito vacío</p>`;
+      } else {
+        lines.innerHTML = items
+          .map(
+            (i) => `
+          <div class="cart-line" data-id="${i.id}">
+            <div>
+              <div class="cart-line-name">${escapeHtml(i.name)}</div>
+              <div class="xs">${formatMoney(i.price)} c/u</div>
+            </div>
+            <div class="qty-ctrl">
+              <button type="button" data-q="-1">−</button>
+              <span style="min-width:1.25rem;text-align:center;font-weight:600">${i.qty}</span>
+              <button type="button" data-q="1">+</button>
+            </div>
+            <strong>${formatMoney(i.price * i.qty)}</strong>
+          </div>`
+          )
+          .join('');
+      }
+
+      document.getElementById('cartSub').textContent = formatMoney(sub);
+      document.getElementById('expressRow').style.display = fee ? '' : 'none';
+      document.getElementById('cartExpress').textContent = formatMoney(fee);
+      document.getElementById('cartTotal').textContent = formatMoney(total);
+      updateChangeHint();
+    }
+
+    document.getElementById('cartLines').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-q]');
+      if (!btn) return;
+      const line = btn.closest('.cart-line');
+      const id = line.dataset.id;
+      const delta = Number(btn.dataset.q);
+      if (!cart[id]) return;
+      cart[id].qty = Math.max(0, cart[id].qty + delta);
+      if (cart[id].qty === 0) delete cart[id];
+      updateCartUI();
+    });
+
+    const cartModal = document.getElementById('cartModal');
+    const openCart = () => {
+      updateCartUI();
+      cartModal.classList.remove('hidden');
+      requestAnimationFrame(() => cartModal.classList.add('modal-in'));
+    };
+    const closeCart = () => {
+      cartModal.classList.add('modal-out');
+      setTimeout(() => {
+        cartModal.classList.add('hidden');
+        cartModal.classList.remove('modal-in', 'modal-out');
+      }, 200);
+    };
+
+    document.getElementById('openCart').addEventListener('click', openCart);
+    document.getElementById('closeCart').addEventListener('click', closeCart);
+
+    document.getElementById('cExpress').addEventListener('change', (e) => {
+      document.getElementById('locWrap').style.display = e.target.checked ? '' : 'none';
+      updateCartUI();
+    });
+    document.getElementById('cLocation').addEventListener('change', updateCartUI);
+
+    document.querySelectorAll('.pay-option').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        paymentMethod = btn.dataset.pay;
+        document.querySelectorAll('.pay-option').forEach((b) => b.classList.toggle('active', b === btn));
+        document.getElementById('cashWrap').style.display = paymentMethod === 'efectivo' ? '' : 'none';
+        document.getElementById('sinpeInfo').classList.toggle('hidden', paymentMethod !== 'sinpe');
+      });
+    });
+
+    document.getElementById('cCash').addEventListener('input', updateChangeHint);
+
+    function updateChangeHint() {
+      const el = document.getElementById('changeHint');
+      const cash = Number(document.getElementById('cCash').value) || 0;
+      const { total } = totals();
+      if (!cash) {
+        el.textContent = '';
+        return;
+      }
+      if (cash < total) el.textContent = `Faltan ${formatMoney(total - cash)}`;
+      else el.textContent = `Vuelto: ${formatMoney(cash - total)}`;
+    }
+
+    document.getElementById('placeOrder').addEventListener('click', async () => {
+      const items = cartItems();
+      if (!items.length) return toast('Agrega productos al carrito', 'warning');
+
+      const isExpress = document.getElementById('cExpress').checked;
+      const locOpt = document.getElementById('cLocation').selectedOptions[0];
+      if (isExpress && !locOpt?.value) return toast('Selecciona la ubicación de envío', 'warning');
+
+      const btn = document.getElementById('placeOrder');
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+
+      try {
+        const result = await placePublicOrder(businessId, {
+          client: {
+            name: document.getElementById('cName').value,
+            phone: document.getElementById('cPhone').value,
+            address: document.getElementById('cAddress').value
+          },
+          items,
+          isExpress,
+          locationId: isExpress ? locOpt.value : null,
+          locationName: isExpress ? locOpt.dataset.name || '' : '',
+          expressFee: isExpress ? Number(locOpt.dataset.fee) || 0 : 0,
+          paymentMethod,
+          cashAmount: paymentMethod === 'efectivo' ? document.getElementById('cCash').value : null,
+          notes: document.getElementById('cNotes').value
+        });
+
+        cart = {};
+        updateCartUI();
+        closeCart();
+        toast('¡Pedido enviado! El negocio lo recibió.', 'success', 5000);
+        app.insertAdjacentHTML(
+          'afterbegin',
+          `<div class="menu-body"><div class="card" style="border-color:#6ee7b7;background:var(--success-soft);margin-bottom:1rem">
+            <strong>Pedido #${escapeHtml(result.id.slice(-6).toUpperCase())} recibido</strong>
+            <p class="small" style="margin:0.35rem 0 0;color:#065f46">Total ${formatMoney(result.total)}. Te contactarán por WhatsApp si es necesario.</p>
+          </div></div>`
+        );
+      } catch (err) {
+        toast(err.message || 'No se pudo enviar el pedido', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar pedido';
+      }
+    });
+  </script>
+</body>
+</html>
