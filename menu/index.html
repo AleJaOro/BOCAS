@@ -85,6 +85,24 @@
     </div>
   </div>
 
+  <!-- Customize dish (variants / extras / halves) -->
+  <div class="modal-overlay hidden" id="cfgModal">
+    <div class="modal modal-lg" role="dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="cfgTitle">Personalizar</h3>
+        <button type="button" class="btn btn-ghost btn-icon" id="closeCfg">×</button>
+      </div>
+      <p class="small muted mb-1" id="cfgBase">Precio base</p>
+      <div id="cfgFields"></div>
+      <div class="flex justify-between items-center mt-2 mb-2">
+        <span class="muted small">Precio unitario</span>
+        <strong id="cfgPrice" style="font-size:1.2rem">₡0</strong>
+      </div>
+      <div id="cfgBreakdown" class="xs muted mb-2"></div>
+      <button type="button" class="btn btn-primary btn-block btn-lg" id="cfgAdd">Agregar al pedido</button>
+    </div>
+  </div>
+
   <script type="module">
     import { lockViewportZoom } from '../js/utils.js';
     import {
@@ -97,6 +115,13 @@
       escapeHtml,
       toast
     } from '../js/menu/public-menu.js';
+    import {
+      itemHasCustomOptions,
+      buildCustomizeFieldsHtml,
+      readCustomizeSelection,
+      computeConfiguredPrice,
+      validateSelection
+    } from '../js/product-options.js';
 
     lockViewportZoom();
 
@@ -126,9 +151,21 @@
         app.innerHTML = `<div class="menu-closed"><h2>${escapeHtml(business.name)}</h2><p>El menú está cerrado temporalmente.</p></div>`;
         throw new Error('closed');
       }
+      if (business.menuHoursClosed) {
+        app.innerHTML = `<div class="menu-closed"><h2>${escapeHtml(business.name)}</h2>
+          <p>Fuera de horario de atención.</p>
+          <p class="small muted">${escapeHtml(business.openStatus?.label || '')}</p>
+        </div>`;
+        throw new Error('hours');
+      }
 
-      menuData = await loadPublicMenu(businessId);
+      // fresh:true evita menú viejo en caché (promos / opciones recién guardadas)
+      menuData = await loadPublicMenu(businessId, { fresh: true });
       document.title = `${business.name} — Menú`;
+
+      const hoursHint = business.openStatus?.label
+        ? `<div class="xs" style="margin-top:0.15rem">${escapeHtml(business.openStatus.label)}</div>`
+        : '';
 
       app.innerHTML = `
         <header class="menu-header">
@@ -137,6 +174,7 @@
             <div>
               <div class="menu-biz-name">${escapeHtml(business.name)}</div>
               <div class="menu-biz-tag">${escapeHtml(business.settings?.welcomeMessage || 'Haz tu pedido aquí')}</div>
+              ${hoursHint}
             </div>
           </div>
           <div class="menu-body" style="padding-top:0;padding-bottom:0">
@@ -180,7 +218,7 @@
         document.getElementById('cExpress').closest('.form-group').style.display = 'none';
       }
     } catch (err) {
-      if (!['404', 'blocked', 'closed', 'no id'].includes(err.message)) {
+      if (!['404', 'blocked', 'closed', 'hours', 'no id'].includes(err.message)) {
         console.error(err);
         app.innerHTML = `<div class="menu-closed"><h2>Error</h2><p>${escapeHtml(err.message)}</p></div>`;
       }
@@ -195,13 +233,100 @@
       document.getElementById(chip.dataset.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
+    let cfgItem = null;
+    const cfgModal = document.getElementById('cfgModal');
+
+    function openCustomize(item) {
+      cfgItem = item;
+      document.getElementById('cfgTitle').textContent = item.name;
+      document.getElementById('cfgBase').textContent = `Precio base ${formatMoney(item.price)}`;
+      document.getElementById('cfgFields').innerHTML = buildCustomizeFieldsHtml(item);
+      const refreshPrice = () => {
+        const sel = readCustomizeSelection(cfgModal);
+        const conf = computeConfiguredPrice(item, sel);
+        document.getElementById('cfgPrice').textContent = formatMoney(conf.unitPrice);
+        document.getElementById('cfgBreakdown').textContent = conf.breakdown.join(' · ');
+      };
+      cfgModal.querySelectorAll('select, input').forEach((el) => {
+        el.addEventListener('change', refreshPrice);
+        el.addEventListener('input', refreshPrice);
+      });
+      refreshPrice();
+      cfgModal.classList.remove('hidden');
+      requestAnimationFrame(() => cfgModal.classList.add('modal-in'));
+    }
+
+    function closeCustomize() {
+      cfgModal.classList.add('modal-out');
+      setTimeout(() => {
+        cfgModal.classList.add('hidden');
+        cfgModal.classList.remove('modal-in', 'modal-out');
+        cfgItem = null;
+      }, 200);
+    }
+
+    document.getElementById('closeCfg').addEventListener('click', closeCustomize);
+    document.getElementById('cfgAdd').addEventListener('click', () => {
+      if (!cfgItem) return;
+      const sel = readCustomizeSelection(cfgModal);
+      const err = validateSelection(cfgItem, sel);
+      if (err) return toast(err, 'warning');
+      const conf = computeConfiguredPrice(cfgItem, sel);
+      // Unique cart key per configuration
+      const key = [
+        cfgItem.id,
+        sel.variantId || '',
+        sel.halfAId || '',
+        sel.halfBId || '',
+        (sel.modifierIds || []).slice().sort().join(',')
+      ].join('|');
+      if (!cart[key]) {
+        cart[key] = {
+          id: key,
+          menuItemId: cfgItem.id,
+          name: conf.displayName,
+          price: conf.unitPrice,
+          qty: 0,
+          kind: 'item',
+          available: true,
+          optionsNote: conf.breakdown.join(' · '),
+          selection: sel
+        };
+      }
+      cart[key].qty += 1;
+      cart[key].price = conf.unitPrice;
+      cart[key].name = conf.displayName;
+      updateCartUI();
+      closeCustomize();
+      toast(`${conf.displayName} agregado`, 'success', 1800);
+    });
+
     document.getElementById('menuBody').addEventListener('click', (e) => {
+      const promoBtn = e.target.closest('[data-add-promo]');
+      if (promoBtn) {
+        if (promoBtn.disabled) return toast('Esta promo está agotada', 'warning');
+        const id = promoBtn.dataset.addPromo;
+        const p = menuData.promotions?.find((x) => x.id === id);
+        if (!p || p.available === false) return toast('Agotado', 'warning');
+        const key = 'promo_' + id;
+        if (!cart[key]) cart[key] = { id: key, name: p.name, price: p.price, qty: 0, kind: 'promo', available: true };
+        cart[key].qty += 1;
+        updateCartUI();
+        toast(`${p.name} agregado`, 'success', 1500);
+        return;
+      }
       const btn = e.target.closest('[data-add]');
       if (!btn) return;
+      if (btn.disabled) return toast('Platillo agotado', 'warning');
       const id = btn.dataset.add;
       const item = menuData.items.find((i) => i.id === id);
       if (!item) return;
-      if (!cart[id]) cart[id] = { id, name: item.name, price: item.price, qty: 0 };
+      if (item.available === false) return toast('Platillo agotado', 'warning');
+      if (itemHasCustomOptions(item)) {
+        openCustomize(item);
+        return;
+      }
+      if (!cart[id]) cart[id] = { id, name: item.name, price: item.price, qty: 0, kind: 'item', available: true };
       cart[id].qty += 1;
       updateCartUI();
       toast(`${item.name} agregado`, 'success', 1500);
@@ -241,9 +366,10 @@
         lines.innerHTML = items
           .map(
             (i) => `
-          <div class="cart-line" data-id="${i.id}">
-            <div>
+          <div class="cart-line" data-id="${escapeHtml(i.id)}">
+            <div style="min-width:0;flex:1">
               <div class="cart-line-name">${escapeHtml(i.name)}</div>
+              ${i.optionsNote ? `<div class="xs muted">${escapeHtml(i.optionsNote)}</div>` : ''}
               <div class="xs">${formatMoney(i.price)} c/u</div>
             </div>
             <div class="qty-ctrl">
