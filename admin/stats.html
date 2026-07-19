@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="../css/main.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -21,9 +21,9 @@
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a class="nav-item" href="/admin/"><span>📊</span> Dashboard</a>
-        <a class="nav-item" href="/admin/businesses.html"><span>🏪</span> Negocios</a>
-        <a class="nav-item active" href="/admin/stats.html"><span>📈</span> Estadísticas</a>
+        <a class="nav-item" href="./"><span>📊</span> Dashboard</a>
+        <a class="nav-item" href="businesses.html"><span>🏪</span> Negocios</a>
+        <a class="nav-item active" href="stats.html"><span>📈</span> Estadísticas</a>
       </nav>
       <div class="sidebar-footer">
         <div class="user-chip">
@@ -92,11 +92,11 @@
   </div>
 
   <script type="module">
-    import { requireRole } from '/js/auth.js';
-    import { initShell } from '/js/shell.js';
-    import { loadAdminStats, renderSalesChart } from '/js/admin/dashboard.js';
-    import { formatMoney, escapeHtml } from '/js/utils.js';
-    import { toast } from '/js/notifications.js';
+    import { requireRole } from '../js/auth.js';
+    import { initShell } from '../js/shell.js';
+    import { loadAdminStats, renderSalesChart } from '../js/admin/dashboard.js';
+    import { formatMoney, escapeHtml } from '../js/utils.js';
+    import { toast } from '../js/notifications.js';
 
     const session = await requireRole('admin');
     if (!session) throw new Error('auth');

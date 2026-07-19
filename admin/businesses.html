@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="../css/main.css" />
 </head>
 <body>
   <div class="app-shell">
@@ -20,9 +20,9 @@
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a class="nav-item" data-nav="dash" href="/admin/"><span>📊</span> Dashboard</a>
-        <a class="nav-item active" data-nav="biz" href="/admin/businesses.html"><span>🏪</span> Negocios</a>
-        <a class="nav-item" data-nav="stats" href="/admin/stats.html"><span>📈</span> Estadísticas</a>
+        <a class="nav-item" data-nav="dash" href="./"><span>📊</span> Dashboard</a>
+        <a class="nav-item active" data-nav="biz" href="businesses.html"><span>🏪</span> Negocios</a>
+        <a class="nav-item" data-nav="stats" href="stats.html"><span>📈</span> Estadísticas</a>
       </nav>
       <div class="sidebar-footer">
         <div class="user-chip">
@@ -139,15 +139,15 @@
   </div>
 
   <script type="module">
-    import { requireRole } from '/js/auth.js';
-    import { initShell } from '/js/shell.js';
+    import { requireRole } from '../js/auth.js';
+    import { initShell } from '../js/shell.js';
     import {
       createBusiness,
       listBusinesses,
       renderBusinessRows,
       bindBusinessActions
-    } from '/js/admin/businesses.js';
-    import { toast } from '/js/notifications.js';
+    } from '../js/admin/businesses.js';
+    import { toast } from '../js/notifications.js';
 
     const session = await requireRole('admin');
     if (!session) throw new Error('auth');

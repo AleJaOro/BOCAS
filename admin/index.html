@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="../css/main.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -21,9 +21,9 @@
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a class="nav-item active" data-nav="dash" href="/admin/"><span>📊</span> Dashboard</a>
-        <a class="nav-item" data-nav="biz" href="/admin/businesses.html"><span>🏪</span> Negocios</a>
-        <a class="nav-item" data-nav="stats" href="/admin/stats.html"><span>📈</span> Estadísticas</a>
+        <a class="nav-item active" data-nav="dash" href="./"><span>📊</span> Dashboard</a>
+        <a class="nav-item" data-nav="biz" href="businesses.html"><span>🏪</span> Negocios</a>
+        <a class="nav-item" data-nav="stats" href="stats.html"><span>📈</span> Estadísticas</a>
       </nav>
       <div class="sidebar-footer">
         <div class="user-chip">
@@ -44,7 +44,7 @@
           <button type="button" class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
           <h1 class="page-title">Dashboard general</h1>
         </div>
-        <a href="/admin/businesses.html" class="btn btn-primary btn-sm">+ Nuevo negocio</a>
+        <a href="businesses.html" class="btn btn-primary btn-sm">+ Nuevo negocio</a>
       </header>
 
       <div class="page-content">
@@ -99,7 +99,7 @@
           <div class="card">
             <div class="card-header">
               <div class="card-title">Resumen de negocios</div>
-              <a href="/admin/businesses.html" class="btn btn-ghost btn-sm">Ver todos</a>
+              <a href="businesses.html" class="btn btn-ghost btn-sm">Ver todos</a>
             </div>
             <div class="table-wrap">
               <table class="data-table">
@@ -122,11 +122,11 @@
   </div>
 
   <script type="module">
-    import { requireRole } from '/js/auth.js';
-    import { initShell } from '/js/shell.js';
-    import { loadAdminStats, renderStatCards, renderSalesChart, renderStatusChart } from '/js/admin/dashboard.js';
-    import { licenseStatus, formatMoney, escapeHtml } from '/js/utils.js';
-    import { toast } from '/js/notifications.js';
+    import { requireRole } from '../js/auth.js';
+    import { initShell } from '../js/shell.js';
+    import { loadAdminStats, renderStatCards, renderSalesChart, renderStatusChart } from '../js/admin/dashboard.js';
+    import { licenseStatus, formatMoney, escapeHtml } from '../js/utils.js';
+    import { toast } from '../js/notifications.js';
 
     const session = await requireRole('admin');
     if (!session) throw new Error('auth');
