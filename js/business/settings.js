@@ -20,6 +20,27 @@ export async function updateBusinessSettings(businessId, settings) {
   await updateDoc(doc(db, 'businesses', businessId), payload);
 }
 
-export function menuPublicUrl(businessId, origin = window.location.origin) {
-  return `${origin}/menu/?b=${encodeURIComponent(businessId)}`;
+/** Public menu link (works with GitHub Pages subpath and Firebase root) */
+export function menuPublicUrl(businessId) {
+  const pathname = window.location.pathname.replace(/\\/g, '/');
+  let baseDir = '/';
+  const markers = ['/admin/', '/admin', '/business/', '/business', '/menu/', '/menu'];
+  let found = false;
+  for (const m of markers) {
+    const idx = pathname.indexOf(m);
+    if (idx >= 0) {
+      baseDir = pathname.slice(0, idx) + '/';
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    if (/\/[^/]+\.html$/i.test(pathname)) {
+      baseDir = pathname.replace(/\/[^/]+\.html$/i, '/');
+    } else if (pathname.endsWith('/')) {
+      baseDir = pathname;
+    }
+  }
+  if (!baseDir.endsWith('/')) baseDir += '/';
+  return new URL(`menu/?b=${encodeURIComponent(businessId)}`, window.location.origin + baseDir).href;
 }
