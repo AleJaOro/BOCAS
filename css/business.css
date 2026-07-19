@@ -293,6 +293,10 @@
 .qr-box canvas {
   border-radius: 8px;
   background: #fff;
+  width: 220px;
+  height: 220px;
+  max-width: 100%;
+  image-rendering: pixelated;
 }
 
 /* Sold out */
