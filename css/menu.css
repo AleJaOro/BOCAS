@@ -277,3 +277,35 @@
   color: #fff;
   border-color: var(--primary);
 }
+
+/* Sold out on public menu */
+.dish-card.dish-soldout {
+  opacity: 0.65;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.dish-card.dish-soldout:hover {
+  box-shadow: none;
+  border-color: var(--border);
+  transform: none;
+}
+
+.dish-card.dish-soldout .dish-name {
+  text-decoration: none;
+}
+
+.modifier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.modifier-check {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
