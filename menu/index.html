@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/main.css" />
-  <link rel="stylesheet" href="/css/menu.css" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="../css/menu.css" />
 </head>
 <body>
   <div id="app" class="menu-public">
@@ -86,7 +86,7 @@
   </div>
 
   <script type="module">
-    import { lockViewportZoom } from '/js/utils.js';
+    import { lockViewportZoom } from '../js/utils.js';
     import {
       resolveBusinessId,
       loadPublicBusiness,
@@ -96,7 +96,7 @@
       formatMoney,
       escapeHtml,
       toast
-    } from '/js/menu/public-menu.js';
+    } from '../js/menu/public-menu.js';
 
     lockViewportZoom();
 
